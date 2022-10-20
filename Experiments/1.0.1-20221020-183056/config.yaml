@@ -1,0 +1,198 @@
+
+##### 
+version: 1.0.1
+description: test experiment
+data_dir: C:/Users/hobbs/Documents/Programming/ML/Datasets/creditcard  # data directory
+data_file_patterns: # files patterns of data sources
+  # train, validation, and test are required, additional datasets are optional 
+  train: train_*.csv
+  validation: validation_*.csv
+  test: test_*.csv
+  other: other_*.csv
+
+# path of existing model (e.g. if you want to warm start, or just run model evalution)
+input_model_path: # leave empty if you don't want to load from path
+
+
+#-----------------------------------
+#---------- Output Config ----------
+#-----------------------------------
+# directory for experiments (this experiment will be in a subdirectory defined by version and execution time)
+experiment_dir: C:/Users/hobbs/Documents/Programming/ML/Experiments
+
+# sub-directories of experiment_dir/[current_experiment_dir]/:
+performance_dir: performance # for model performance charts
+model_dir: model # for model objects
+explain_dir: explain # for model explanatory objects
+score_dir: scores # for model scores (only required if save_scores == True)
+
+save_scores: True # save model scores for transaction data (along with aux_fields)
+
+
+#-----------------------------------
+#----------- Job Config ------------
+#-----------------------------------
+
+# valid supervised learning model_types:
+  # XGBClassifier, XGBRegressor,
+  # RandomForestClassifier, RandomForestRegressor,
+  # DecisionTreeClassifier, DecisionTreeRegressor,
+  # MLPClassifier, MLPRegressor,
+  # KNeighborsClassifier, KNeighborsRegressor, 
+  # LogisticRegression, LinearRegression
+# valid unsupervised learning model_types:
+  # KMeans, DBSCAN, IsolationForest
+# can also set model_type to 'Other', then pass any sklearn model object into .load_model()
+model_type: XGBClassifier
+supervised: True # True for supervised learning, False for unsupervised
+binary_classification: True # True for 2-class classification experiments
+label: "Class" # field name of target variable (can leave blank or omit for unsupervised learning)
+features: # list of field names of features to be used
+  - V1
+  - V2
+  - V3
+  - V4
+  - V5
+  - V6
+  - V7
+  - V8
+  - V9
+  - V10
+  - V11
+  - V12
+  - V13
+  - V14
+  - V15
+  - V16
+  - V17
+  - V18
+  - V19
+  - V20
+  - V21
+  - V22
+  - V23
+  - V24
+  - V25
+  - V26
+  - V27
+  - V28
+  - Amount
+aux_fields: # auxiliary fields to use to create additional metrics 
+  - Amount
+seed: 32
+verbose: 10 # how frequently to print output (only applies to XGBoost models)
+
+hyperparameters:
+  n_estimators: 50
+  learning_rate: 0.1
+  gamma: 0.1
+  max_depth: 2
+  min_child_weight: 1
+  subsample: 0.8
+  colsample_bytree: 0.8
+  reg_lambda: 1
+  reg_alpha: 0
+  scale_pos_weight: 1
+  use_label_encoder: False
+  # early_stopping_rounds: 50 # need XGBoost v1.6.0
+  eval_metric: [auc, aucpr, error, logloss] # last metric is used for early stopping (if applicable)
+# valid eval_metric values:
+  # rmse, rmsle, mae, mape, mphe, logloss, error, merror, mlogloss,
+  # poisson-nloglik, gamma-nloglik, cox-nloglik, gamma-deviance, 
+  # tweedie-nloglik, aft-nloglik, auc, aucpr
+hyperparameter_tuning: True # True or False
+tuning_algorithm: "atpe" # grid, random, tpe, or atpe.
+  # tpe matches random for the first 20 iterations
+hyperparameter_eval_metric: log_loss # average_precision, aucpr, auc, log_loss, brier_loss
+tuning_iterations: 10 # need to specify for random, tpe, or atpe
+
+# # for grid search
+# tuning_parameters:
+#   min_child_weight: [1]
+#   max_depth: [3, 5]
+
+# for random, tpe, or atpe (must specify distributions)
+# possible distribution functions
+  # choice(options)
+  # uniform(low, high)
+  # quniform(low, high, q)   # round(uniform(low, high) / q) * q
+  # normal(mu, sigma)
+  # there are also log-uniform and log-normal distributions that I didn't implement
+tuning_parameters:
+  n_estimators:
+    function: quniform
+    params:
+      low: 50
+      high: 1500
+      q: 1
+  learning_rate:
+    function: uniform
+    params:
+      low: 0.001
+      high: 0.1
+  gamma:
+    function: uniform
+    params:
+      low: 0
+      high: 5
+  max_depth:
+    function: choice # could use quniform
+    params:
+      options: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+  min_child_weight:
+    function: uniform 
+    params:
+      low: 0
+      high: 5
+  subsample:
+    function: uniform 
+    params:
+      low: 0
+      high: 1
+  colsample_bytree:
+    function: uniform 
+    params:
+      low: 0
+      high: 1
+  reg_lambda:
+    function: normal
+    params:
+      mu: 1
+      sigma: 0.1
+  reg_alpha:
+    function: uniform
+    params:
+      low: 0
+      high: 5
+
+# Model explainability
+permutation_importance: True
+perm_imp_metrics: [roc_auc, average_precision, neg_log_loss]
+perm_imp_n_repeats: 10
+
+shap: True # True or False; True => generate shap charts
+shap_sample: 50000 #
+
+# permutation_importance
+  # not required, default False, type: boolean
+  # valid values: True, False
+  # meaning: True => generate permutation feature importance tables
+# perm_imp_metrics
+  # not required, default neg_log_loss, type: list or string
+  # valid values (or list elements): roc_auc, average_precision, neg_log_loss, r2, ...
+    # see complete list at https://scikit-learn.org/stable/modules/model_evaluation.html
+  # meaning: metrics used in permutation feature importance calculations
+# perm_imp_n_repeats
+  # not required, default 10, type: int (or str that casts to int)
+  # valid values: int > 10
+  # meaning: number of times to permute each feature in permutation feature importance
+
+# shap
+  # not required, default False, type: boolean
+  # valid values: True, False
+  # meaning: True => generate shap charts
+# shap_sample
+  # not required, default None, type: None or int (or str that casts to int)
+  # valid values: None or int > 0
+  # meaning: use only shap_sample random rows to construct shap charts
+    # shap_sample is None => use all rows

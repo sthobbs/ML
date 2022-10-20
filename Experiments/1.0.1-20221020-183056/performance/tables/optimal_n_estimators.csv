@@ -1,0 +1,5 @@
+Metric,train,test,other,validation
+auc,617,402,608,603
+aucpr,617,196,608,508
+error,608,273,178,508
+logloss,617,579,617,617
