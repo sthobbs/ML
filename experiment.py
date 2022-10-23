@@ -690,25 +690,11 @@ class Experiment():
         and shap values.
         """
 
-        # Generate permutation feature importance tables
+        # Generate Permutation Feature Importance Tables
         if self.permutation_importance:
-            print(f"\n-----Generating Permutation Feature Importances-----")
-            self.explain_dir.mkdir(exist_ok=True)
+            n_repeats = self.perm_imp_n_repeats
             metrics = self.perm_imp_metrics
-            for name in self.dataset_names:
-                print(f"running permutation importance on {name} data")
-                r = permutation_importance(self.model, **self.data[name],
-                    n_repeats=self.perm_imp_n_repeats, random_state=self.seed,
-                    scoring=metrics)
-                imps = []
-                for m in metrics:
-                    means = pd.Series(r[m]['importances_mean'], name=f"{m}_mean")
-                    stds = pd.Series(r[m]['importances_std'], name=f"{m}_std")
-                    imps.extend([means, stds])
-                df = pd.concat(imps, axis=1) # dataframe of importance means and stds
-                df.index = self.features[:]
-                df.sort_values(f"{metrics[0]}_mean", ascending=False, inplace=True)
-                df.to_csv(f'{self.explain_dir}/permutation_importance_{name}.csv')
+            self.gen_permutation_importance(n_repeats, metrics)
 
         # Generate Shap Charts
         if self.shap:
@@ -722,9 +708,46 @@ class Experiment():
         if self.csi:
             self.gen_csi(bin_types=self.csi_bin_types, n_bins=self.csi_n_bins)
 
-        # Generate VIF table
+        # Generate VIF Table
         if self.vif:
             self.gen_vif()
+
+    def gen_permutation_importance(self, n_repeats=10, metrics='neg_log_loss'):
+        """
+        Generate permutation feature importance tables.
+        
+        Parameters
+        ----------
+            n_repeats : int, optional
+                number of times to permute each feature (default is 10)
+            metrics : str or list of str, optional
+                metrics used in permutation feature importance calculations (default is 'neg_log_loss').
+                e.g.: 'roc_auc', 'average_precision', 'neg_log_loss', 'r2', etc.
+                see https://scikit-learn.org/stable/modules/model_evaluation.html for complete list.
+        """
+
+        print(f"\n-----Generating Permutation Feature Importances-----")
+
+        # make output directory
+        self.explain_dir.mkdir(exist_ok=True)
+        
+        # generate permutation feature importance for each metric on each dataset
+        metrics = self.perm_imp_metrics
+        for name in self.dataset_names:
+            print(f"running permutation importance on {name} data")
+            r = permutation_importance(self.model, **self.data[name],
+                n_repeats=n_repeats, random_state=self.seed,
+                scoring=metrics)
+            imps = []
+            for m in metrics:
+                # get means and standard deviations of feature importance
+                means = pd.Series(r[m]['importances_mean'], name=f"{m}_mean")
+                stds = pd.Series(r[m]['importances_std'], name=f"{m}_std")
+                imps.extend([means, stds])
+            df = pd.concat(imps, axis=1) # dataframe of importance means and stds
+            df.index = self.features[:]
+            df.sort_values(f"{metrics[0]}_mean", ascending=False, inplace=True)
+            df.to_csv(f'{self.explain_dir}/permutation_importance_{name}.csv')
 
     def plot_shap(self):
         """Generate model explanitory charts involving shap values."""

@@ -180,7 +180,7 @@ perm_imp_n_repeats: 10
 # perm_imp_metrics
   # not required, default neg_log_loss, type: list or string
   # valid values (or list elements): roc_auc, average_precision, neg_log_loss, r2, ...
-    # see complete list at https://scikit-learn.org/stable/modules/model_evaluation.html
+    # see https://scikit-learn.org/stable/modules/model_evaluation.html for complete list
   # meaning: metrics used in permutation feature importance calculations
 # perm_imp_n_repeats
   # not required, default 10, type: int (or str that casts to int)
