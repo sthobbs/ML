@@ -8,6 +8,7 @@ import numpy as np
 from pathlib import Path
 import seaborn as sns
 from tqdm import tqdm
+from scipy.stats import ks_2samp
 
 
 def metric_score(y_true, y_score, metric):
@@ -39,7 +40,13 @@ def metric_score(y_true, y_score, metric):
 
 
 class ModelEvaluation():
-    """Generates plots and charts to evaluate a model."""
+    """
+    Generates plots and charts to evaluate a model.
+
+    Author:
+       Steve Hobbs
+       github.com/sthobbs
+    """
 
     def __init__(self, model=None, datasets=None, output_dir=None, aux_fields=None):
         """
@@ -79,6 +86,8 @@ class ModelEvaluation():
     def binary_evaluate(self, increment=0.01):
         """
         Generate plots and tables for a binary classification model.
+
+        class label values must be either 0 or 1.
 
         Parameters
         ----------
@@ -121,6 +130,9 @@ class ModelEvaluation():
 
             # Generate Metrics Table
             self._metrics_table(y_true, y_score, dataset_name, roc_auc, precision_recall_auc, average_precision)
+
+        # Generate Kolmogorov-Smirnov (KS) Statistic
+        self.ks_statistic()
 
         plt.close('all')
 
@@ -366,3 +378,19 @@ class ModelEvaluation():
         df.to_csv(f'{self.tables_subdir}/metrics_{dataset_name}.csv', index=False)
         print(f'Generated metrics table ({dataset_name} data)')
 
+    def ks_statistic(self):
+        """Generate Kolmogorov-Smirnov (KS) Statistic."""
+
+        # intialize output dataframe
+        df = pd.DataFrame(columns=['dataset', 'ks', 'p-value'])
+
+        # generate KS Statistic for each dataset
+        for X, y_true, dataset_name in self.datasets:
+            y_score = self.model.predict_proba(X)[:,1]
+            ks_stat, p_value = ks_2samp(y_score[y_true==0], y_score[y_true==1])
+            row = {'dataset': dataset_name, 'ks': ks_stat, 'p-value': p_value}
+            df = df.append(row, ignore_index=True)
+
+        # save output to csv
+        df.to_csv(self.tables_subdir/f"ks_statistic", index=False)
+        print(f'Generated Kolmogorov-Smirnov (KS) Statistic table')
