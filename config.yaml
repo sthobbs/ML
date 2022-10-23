@@ -26,7 +26,7 @@ model_dir: model # for model objects
 explain_dir: explain # for model explanatory objects
 score_dir: scores # for model scores (only required if save_scores == True)
 
-save_scores: True # save model scores for transaction data (along with aux_fields)
+save_scores: False # save model scores for transaction data (along with aux_fields)
 
 
 #-----------------------------------
@@ -100,7 +100,7 @@ hyperparameters:
   # rmse, rmsle, mae, mape, mphe, logloss, error, merror, mlogloss,
   # poisson-nloglik, gamma-nloglik, cox-nloglik, gamma-deviance, 
   # tweedie-nloglik, aft-nloglik, auc, aucpr
-hyperparameter_tuning: True # True or False
+hyperparameter_tuning: False # True or False
 tuning_algorithm: "atpe" # grid, random, tpe, or atpe.
   # tpe matches random for the first 20 iterations
 hyperparameter_eval_metric: log_loss # average_precision, aucpr, auc, log_loss, brier_loss
@@ -166,12 +166,16 @@ tuning_parameters:
       high: 5
 
 # Model explainability
-permutation_importance: True
+permutation_importance: False
 perm_imp_metrics: [roc_auc, average_precision, neg_log_loss]
 perm_imp_n_repeats: 10
 
-shap: True # True or False; True => generate shap charts
+shap: False # True or False; True => generate shap charts
 shap_sample: 50000 #
+
+psi: True
+psi_bin_types: bins
+psi_n_bins: 10
 
 # permutation_importance
   # not required, default False, type: boolean
@@ -196,3 +200,18 @@ shap_sample: 50000 #
   # valid values: None or int > 0
   # meaning: use only shap_sample random rows to construct shap charts
     # shap_sample is None => use all rows
+
+# psi
+  # not required, default False, type: boolean
+  # valid values: True, False
+  # meaning: True => generate psi for all pairs of datasets
+# psi_bin_types
+  # not required, default 'bins', type: string
+  # valid values: 'bins', 'quantiles'
+  # meaning: when to use evenly spaced bins or quantiles when calculating psi
+# psi_n_bins
+  # not required, default 10, type: None or int (or str that casts to int)
+  # valid values: None or int > 1
+  # meaning: number of bins to use in psi calculation
+
+

@@ -31,7 +31,13 @@ class ConfigError(Exception):
 
 
 class Experiment():
-    """Class for training and evaluating ML models"""
+    """
+    Class for training and evaluating ML models
+
+    Author:
+       Steve Hobbs
+       github.com/sthobbs
+    """
     
     def __init__(self, config_path):
         """
@@ -96,16 +102,18 @@ class Experiment():
         self.perm_imp_n_repeats = int(self.config.get("perm_imp_n_repeats", 10))
         self.shap = self.config.get("shap", False)
         self.shap_sample = self.config.get("shap_sample", None)
+        self.psi = self.config.get("psi", False)
+        self.psi_bin_types = self.config.get("psi_bin_types", "bins")
+        self.psi_n_bins = self.config.get("psi_n_bins", 10)
         self.data = {} # where data will be stored
         self.aux_data = {} # where auxiliary fields will be stored
         self.model = None
         
-        # custom order dataset_names, so validation is last since 
-        # the last dataset is used for early stopping (if enabled)
+        # custom orders for dataset_names
         all_names = set(self.data_file_patterns)
         main_names = {'train', 'test', 'validation'}
         other_names = sorted(all_names.difference(main_names))
-        self.dataset_names = ['train', 'test'] + other_names + ['validation']
+        self.dataset_names = ['train', 'test'] + other_names + ['validation'] # validation last for early stopping
 
     def validate_config(self):
         """Ensure that the config file is valid."""
@@ -122,7 +130,7 @@ class Experiment():
             'score_dir', 'label', 'verbose', 'hyperparameter_eval_metric',
             'tuning_algorithm', 'tuning_iterations', 'tuning_parameters',
             'permutation_importance', 'perm_imp_metrics', 'perm_imp_n_repeats',
-            'shap', 'shap_sample'
+            'shap', 'shap_sample', 'psi', 'psi_bin_types', 'psi_n_bins'
         }
         valid_keys = required_keys.union(other_valid_keys)
         keys_with_required_vals = {
@@ -299,7 +307,23 @@ class Experiment():
                 int(shap_sample)
             except Exception as e:
                 raise ConfigError(f"shap_sample exception converting to int: {e}")
-        
+
+        # check psi_bin_types (either no key, None, 'bins' or 'quantiles')
+        psi_bin_types = self.config.get("psi_bin_types", None)
+        if psi_bin_types not in {None, 'bins', 'quantiles'}:
+            msg = "if psi_bin_types is present, it must be 'bins', 'quantiles', or empty"
+            raise ConfigError(msg)
+
+        # check psi_n_bins (either no key, None or castable to int (>1))
+        psi_n_bins = self.config.get("psi_n_bins", None)
+        if psi_n_bins is not None:
+            try:
+                int(psi_n_bins)
+            except Exception as e:
+                raise ConfigError(f"psi_n_bins exception converting to int: {e}")
+            if int(psi_n_bins) <= 1:
+                raise ConfigError(f"if psi_n_bins is an int, it should be > 1")
+
         # check required boolean keys
         boolean_keys = {
             'save_scores', 'supervised', 'binary_classification','hyperparameter_tuning'
@@ -309,7 +333,7 @@ class Experiment():
                 raise ConfigError(f"{k} must be True, False, or empty")
         
         # check non-required boolean keys
-        boolean_keys = {'permutation_importance', 'shap'}
+        boolean_keys = {'permutation_importance', 'shap', 'psi'}
         for k in boolean_keys:
             if self.config.get(k, None) not in (True, False, None):
                 raise ConfigError(f"if {k} is present, it must be True, False, or empty")
@@ -320,7 +344,7 @@ class Experiment():
             2) hyperparameter tuning (grid search, random search, tpe, or atpe)
             3) model training
             4) saving the model object
-            5) extensive model evaluation
+            5) model evaluation
             6) generating model explanitory artifacts
             7) saving model scores
         """
@@ -330,7 +354,8 @@ class Experiment():
         self.save_model()
         self.evaluate()
         self.explain()
-        self.gen_scores()
+        if self.save_scores:
+            self.gen_scores()
 
     def setup(self):
         """
@@ -486,11 +511,11 @@ class Experiment():
         
         # run grid search (if configured)
         if self.tuning_algorithm == 'grid':
-            best_params = self.grid_search()
+            best_params = self._grid_search()
         
         # run random search, tpe, or atpe hyperparameter optimization algorithm 
         elif self.tuning_algorithm in ("random", "tpe", "atpe"):
-            best_params = self.hyperopt_search()
+            best_params = self._hyperopt_search()
         
         # write best params to file
         with open(self.performance_dir/"parameter_tuning_log.txt", "a") as file:
@@ -499,7 +524,7 @@ class Experiment():
         # set model to use best paramaters 
         self.model.set_params(**best_params)
 
-    def grid_search(self):
+    def _grid_search(self):
         """Tune hyperparameters with grid search."""
 
         # Grid search all possible combinations
@@ -518,7 +543,7 @@ class Experiment():
         best_params = param_dict_list[best(scores)]
         return best_params
 
-    def hyperopt_search(self):
+    def _hyperopt_search(self):
         """Tune hyperparameters with either random search, tpe, or atpe."""
         
         # define optimization function
@@ -529,7 +554,7 @@ class Experiment():
                 score = -score
             return {'loss': score, 'status': STATUS_OK}
 
-        # map param kwargs to positional args since atpe only works with positional arguments
+        # map param kwargs to positional args (since atpe only works with positional arguments)
         def kwargs_to_args(distribution):
             dist_func_str = distribution['function']
             params = distribution['params']
@@ -669,12 +694,14 @@ class Experiment():
 
         # Generate Shap Charts
         if self.shap:
-            self._plot_shap()
+            self.plot_shap()
 
-    def _plot_shap(self):
+        if self.psi:
+            self.gen_psi(bin_types=self.psi_bin_types, n_bins=self.psi_n_bins)
+
+    def plot_shap(self):
         """Generate model explanitory charts involving shap values."""
 
-        assert self.shap, "self.shap must be True to run ._plot_shap()"
         plt.close('all')
         
         # Generate Shap Charts
@@ -732,19 +759,110 @@ class Experiment():
             plt.close()
             # TODO?: make alpha and max_display config variables
 
+    def gen_psi(self, bin_types='bins', n_bins=10):
+        """
+        Generate Population Stability Index (PSI) values between all pairs of datasets.
+
+        Note: PSI is symmetric provided the bins are the same, which they are when bin_types='bins'
+        
+        Parameters
+        ----------
+            bin_types : str, optional
+                the method for choosing bins, either 'bins' or 'quantiles' (default is 'bins')
+            n_bins : int, optional
+                the number of bins used to compute psi (default is 10)
+        """
+
+        # check for valid input
+        assert bin_types in ('bins', 'quantiles'), "bin_types must be in ('bins', 'quantiles')"
+        if not self.binary_classification:
+            warnings.warn("self.binary_classification must be True to run psi")
+            return
+
+        # intialize output dataframe
+        psi_df = pd.DataFrame(columns=['dataset1', 'dataset2', 'psi'])
+        
+        # get dictionary of scores for all datasets
+        scores_dict = {}
+        for dataset_name, dataset in self.data.items():
+            scores = self.model.predict_proba(dataset['X'])[:,1]
+            scores.sort()
+            scores_dict[dataset_name] = scores
+        
+        # compute psi for each pair of datasets
+        for i, dataset_name1 in enumerate(self.dataset_names):
+            for j in range(i+1, len(self.dataset_names)):
+                dataset_name2 = self.dataset_names[j]
+                scores1 = scores_dict[dataset_name1]
+                scores2 = scores_dict[dataset_name2]
+                psi_val = self._psi_compare(scores1, scores2, bin_types=bin_types, n_bins=n_bins)
+                row = {
+                    'dataset1': dataset_name1,
+                    'dataset2': dataset_name2,
+                    'psi': psi_val
+                }
+                psi_df = psi_df.append(row, ignore_index=True)
+        
+        # save output to csv
+        self.explain_dir.mkdir(exist_ok=True)
+        psi_df.to_csv(self.explain_dir/'psi.csv', index=False)
+
+    def _psi_compare(self, scores1, scores2, bin_types='bins', n_bins=10):
+        """
+        Compute Population Stability Index (PSI) between two datasets.
+
+        Parameters
+        ----------
+            scores1 : numpy.ndarray or pandas.core.series.Series
+                scores for one of the datasets
+            scores2 : numpy.ndarray or pandas.core.series.Series
+                scores for the other dataset
+            bin_types : str, optional
+                the method for choosing bins, either 'bins' or 'quantiles' (default is 'bins')
+            n_bins : int, optional
+                the number of bins used to compute psi (default is 10)
+        ...
+        """
+
+        # get bins
+        if bin_types == 'bins':
+            bins = [i / n_bins for i in range(n_bins + 1)]
+        elif bin_types == 'quantiles':
+            bins = pd.qcut(scores1, q=n_bins, retbins=True, duplicates='drop')[1]
+            n_bins = len(bins) + 1 # some bins could be dropped due to duplication
+        eps = 1e-6
+        bins[0] = -eps
+        bins[-1] = 1 + eps
+
+        # group data into bins and get percentage rates
+        scores1_bins = pd.cut(scores1, bins=bins, labels=range(n_bins))
+        scores2_bins = pd.cut(scores2, bins=bins, labels=range(n_bins))
+        df1 = pd.DataFrame({'score1': scores1, 'bin': scores1_bins})
+        df2 = pd.DataFrame({'score2': scores2, 'bin': scores2_bins})
+        grp1 = df1.groupby('bin').count()['score1']
+        grp2 = df2.groupby('bin').count()['score2']
+        grp1_rate = (grp1 / sum(grp1)).rename('rate1')
+        grp2_rate = (grp2 / sum(grp2)).rename('rate2')
+        grp_rates = pd.concat([grp1_rate, grp2_rate], axis=1).fillna(0)
+
+        # add a small value when the percent is zero
+        grp_rates = grp_rates.applymap(lambda x: eps if x == 0 else x)
+
+        # calculate psi
+        psi_vals = (grp_rates['rate1'] - grp_rates['rate2']) * np.log(grp_rates['rate1'] / grp_rates['rate2'])
+        return psi_vals.mean()
+
     def gen_scores(self):
         """Save model scores for each row"""
 
-        if not self.save_scores:
-            return
         print(f"\n-----Generating Scores-----")
         self.score_dir.mkdir(exist_ok=True)
-        for k, v in self.data.items():
-            scores = self.model.predict_proba(v['X'])[:,1]
-            scores = pd.Series(scores, name='score', index=v['y'].index)
-            df = pd.concat([v['y'], scores, self.aux_data[k]], axis=1)
-            path = f"{self.score_dir}/{k}_scores"
+        for dataset_name, dataset in self.data.items():
+            scores = self.model.predict_proba(dataset['X'])[:,1]
+            scores = pd.Series(scores, name='score', index=dataset['y'].index)
+            df = pd.concat([dataset['y'], scores, self.aux_data[dataset_name]], axis=1)
+            path = f"{self.score_dir}/{dataset_name}_scores"
             df.to_csv(path, index=False)
-            print(f"Saved {k} scores to {path}")
+            print(f"Saved {dataset_name} scores to {path}")
 
       
