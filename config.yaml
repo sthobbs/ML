@@ -234,9 +234,24 @@ csi_n_bins: 10
   # valid values: None or int > 1
   # meaning: number of bins to use in csi calculation
 
-vif: True
+vif: False
 # vif
   # not required, default False, type: boolean
   # valid values: True, False
   # meaning: True => generate variance inflation factor (vif) for all features in all datasets
 
+woe_iv: True
+woe_bin_types: quantiles
+woe_n_bins: 10
+# woe_iv
+  # not required, default False, type: boolean
+  # valid values: True, False
+  # meaning: True => generate Weight of Evidence and Information Value for all features in all datasets
+# woe_bin_types
+  # not required, default 'quantiles', type: string
+  # valid values: 'fixed', 'quantiles'
+  # meaning: when to use evenly spaced bins or quantiles when calculating woe and iv
+# woe_n_bins
+  # not required, default 10, type: None or int (or str that casts to int)
+  # valid values: None or int > 1
+  # meaning: number of bins to use in woe and iv calculation

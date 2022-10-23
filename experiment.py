@@ -117,7 +117,10 @@ class Experiment():
         self.csi_n_bins = self.config.get("csi_n_bins", 10)
         # Variance Inflation Factor
         self.vif = self.config.get("vif", False)
-        
+        # WOE/IV
+        self.woe_iv = self.config.get("woe_iv", False)
+        self.woe_bin_types = self.config.get("woe_bin_types", "quantiles")
+        self.woe_n_bins = self.config.get("woe_n_bins", 10)
 
         self.data = {} # where data will be stored
         self.aux_data = {} # where auxiliary fields will be stored
@@ -145,7 +148,8 @@ class Experiment():
             'tuning_algorithm', 'tuning_iterations', 'tuning_parameters',
             'permutation_importance', 'perm_imp_metrics', 'perm_imp_n_repeats',
             'shap', 'shap_sample', 'psi', 'psi_bin_types', 'psi_n_bins',
-            'csi', 'csi_bin_types', 'csi_n_bins', 'vif'
+            'csi', 'csi_bin_types', 'csi_n_bins', 'vif', 'woe_iv',
+            'woe_bin_types', 'woe_n_bins'
         }
         valid_keys = required_keys.union(other_valid_keys)
         keys_with_required_vals = {
@@ -323,15 +327,15 @@ class Experiment():
             except Exception as e:
                 raise ConfigError(f"shap_sample exception converting to int: {e}")
 
-        # check psi_bin_types and csi_n_bins (either no key, None, 'fixed' or 'quantiles')
-        for feature in ('psi_bin_types', 'csi_bin_types'):
+        # check psi_bin_types, csi_bin_types, and woe_bin_types (no key, None, 'fixed' or 'quantiles')
+        for feature in ('psi_bin_types', 'csi_bin_types', 'woe_bin_types'):
             bin_types = self.config.get(feature, None)
             if bin_types not in {None, 'fixed', 'quantiles'}:
                 msg = f"if {feature} is present, it must be 'fixed', 'quantiles', or empty"
                 raise ConfigError(msg)
 
-        # check psi_n_bins and csi_n_bins (either no key, None or castable to int (>1))
-        for feature in ('psi_n_bins', 'csi_n_bins'):
+        # check psi_n_bins, csi_n_bins, and woe_n_bins (no key, None or castable to int (>1))
+        for feature in ('psi_n_bins', 'csi_n_bins', 'woe_n_bins'):
             n_bins = self.config.get(feature, None)
             if n_bins is not None:
                 try:
@@ -350,7 +354,7 @@ class Experiment():
                 raise ConfigError(f"{k} must be True, False, or empty")
         
         # check non-required boolean keys
-        boolean_keys = {'permutation_importance', 'shap', 'psi', 'csi', 'vif'}
+        boolean_keys = {'permutation_importance', 'shap', 'psi', 'csi', 'vif', 'woe_iv'}
         for k in boolean_keys:
             if self.config.get(k, None) not in (True, False, None):
                 raise ConfigError(f"if {k} is present, it must be True, False, or empty")
@@ -712,6 +716,10 @@ class Experiment():
         if self.vif:
             self.gen_vif()
 
+        # Generate WOE and IV
+        if self.woe_iv and self.binary_classification:
+            self.gen_woe_iv()
+
     def gen_permutation_importance(self, n_repeats=10, metrics='neg_log_loss'):
         """
         Generate permutation feature importance tables.
@@ -990,6 +998,91 @@ class Experiment():
             X = dataset['X'].values
             df["vif"] = [variance_inflation_factor(X, i) for i in range(len(self.features))]
             df.to_csv(vif_dir/f'vif_{dataset_name}.csv', index=False)
+
+    def gen_woe_iv(self, bin_types='quantiles', n_bins=10):
+
+        if not self.binary_classification:
+            msg = "self.binary_classification must be True to run .gen_woe_iv()"
+            warnings.warn(msg)
+            return
+
+        print(f"\n-----Generating WOE and IV-----")
+
+        for dataset_name, dataset in self.data.items():
+
+            print(f"generating woe and iv for {dataset_name} dataset")
+
+            # make output directory
+            woe_dir = self.explain_dir / 'woe_iv'
+            woe_dir.mkdir(parents=True, exist_ok=True)
+
+            # initialize lists to accumulate data
+            woe_df_list = []
+            iv_list = []
+
+            # get labels
+            y_true = self.data[dataset_name]['y']
+            
+            # generate woe and iv for all features
+            for feature in tqdm(self.features):
+
+                # get feature data
+                values = self.data[dataset_name]['X'][feature]
+
+                # get bins
+                if bin_types == 'fixed':
+                    min_val = min(values)
+                    max_val = max(values)
+                    bins = [min_val + (max_val - min_val) * i / n_bins for i in range(n_bins + 1)]
+                elif bin_types == 'quantiles':
+                    bins = pd.qcut(values, q=n_bins, retbins=True, duplicates='drop')[1]
+                eps = 1e-6
+                bins[0] -= -eps # add buffer to include points right at the edge.
+                bins[-1] += eps
+
+                # group data into bins
+                value_bins = pd.cut(values, bins=bins)
+                df = pd.DataFrame({'label': y_true, 'bin': value_bins})
+                
+                # get counts
+                df = df.groupby(['bin']).agg({'label': [sum,len]})['label']
+                df['cnt_0'] = df['len'] - df['sum'] # count of 0-label events
+                df.rename(columns={'sum': 'cnt_1'}, inplace=True) # count of 1-label events
+
+                # reformat dataframe
+                df.drop(columns=['len'], inplace=True)
+                df.reset_index(inplace=True)
+                df['feature'] = feature # add feature
+                df = df.reindex(columns=['feature', 'bin', 'cnt_0','cnt_1']) # reorder columns
+                
+                # get rates
+                df['pct_0'] = df['cnt_0'] / df['cnt_0'].sum()
+                df['pct_1'] = df['cnt_1'] / df['cnt_1'].sum()
+
+                # get WOEs and IV
+                df['woe'] = np.log(df['pct_1'] / df['pct_0'])
+                df['adj_woe'] = np.log(
+                    ((df['cnt_1'] + 0.5) / df['cnt_1'].sum())
+                  / ((df['cnt_0'] + 0.5) / df['cnt_0'].sum()))
+                iv = (df['woe'] * (df['pct_1'] - df['pct_0'])).sum()
+                adj_iv = (df['adj_woe'] * (df['pct_1'] - df['pct_0'])).sum()
+
+                # append to lists
+                woe_df_list.append(df)
+                iv_list.append({'feature': feature, 'iv': iv, 'adj_iv': adj_iv})
+
+            woe_df = pd.concat(woe_df_list)
+            woe_df.to_csv(woe_dir/f'woe_{dataset_name}.csv', index=False)
+
+            iv_df = pd.DataFrame.from_records(iv_list)
+            iv_df.sort_values('adj_iv', ascending=False, inplace=True)
+            iv_df.index.name = 'index'
+            iv_df.to_csv(woe_dir/f'iv_{dataset_name}.csv')
+
+
+
+
+
 
     def gen_scores(self):
         """Save model scores for each row"""

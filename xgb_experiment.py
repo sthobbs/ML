@@ -122,6 +122,7 @@ if __name__ == "__main__":
 
 
 ### Next Steps
+# (M) refactor explain code into seperate class
 # read hyperopt papers
 # read shap paper
 # add README.md with examples
