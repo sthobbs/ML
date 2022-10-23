@@ -174,7 +174,7 @@ shap: False # True or False; True => generate shap charts
 shap_sample: 50000 #
 
 psi: True
-psi_bin_types: bins
+psi_bin_types: fixed
 psi_n_bins: 10
 
 # permutation_importance
@@ -206,8 +206,8 @@ psi_n_bins: 10
   # valid values: True, False
   # meaning: True => generate psi for all pairs of datasets
 # psi_bin_types
-  # not required, default 'bins', type: string
-  # valid values: 'bins', 'quantiles'
+  # not required, default 'fixed', type: string
+  # valid values: 'fixed', 'quantiles'
   # meaning: when to use evenly spaced bins or quantiles when calculating psi
 # psi_n_bins
   # not required, default 10, type: None or int (or str that casts to int)

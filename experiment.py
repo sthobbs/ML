@@ -103,7 +103,7 @@ class Experiment():
         self.shap = self.config.get("shap", False)
         self.shap_sample = self.config.get("shap_sample", None)
         self.psi = self.config.get("psi", False)
-        self.psi_bin_types = self.config.get("psi_bin_types", "bins")
+        self.psi_bin_types = self.config.get("psi_bin_types", "fixed")
         self.psi_n_bins = self.config.get("psi_n_bins", 10)
         self.data = {} # where data will be stored
         self.aux_data = {} # where auxiliary fields will be stored
@@ -308,10 +308,10 @@ class Experiment():
             except Exception as e:
                 raise ConfigError(f"shap_sample exception converting to int: {e}")
 
-        # check psi_bin_types (either no key, None, 'bins' or 'quantiles')
+        # check psi_bin_types (either no key, None, 'fixed' or 'quantiles')
         psi_bin_types = self.config.get("psi_bin_types", None)
-        if psi_bin_types not in {None, 'bins', 'quantiles'}:
-            msg = "if psi_bin_types is present, it must be 'bins', 'quantiles', or empty"
+        if psi_bin_types not in {None, 'fixed', 'quantiles'}:
+            msg = "if psi_bin_types is present, it must be 'fixed', 'quantiles', or empty"
             raise ConfigError(msg)
 
         # check psi_n_bins (either no key, None or castable to int (>1))
@@ -759,22 +759,22 @@ class Experiment():
             plt.close()
             # TODO?: make alpha and max_display config variables
 
-    def gen_psi(self, bin_types='bins', n_bins=10):
+    def gen_psi(self, bin_types='fixed', n_bins=10):
         """
         Generate Population Stability Index (PSI) values between all pairs of datasets.
 
-        Note: PSI is symmetric provided the bins are the same, which they are when bin_types='bins'
+        Note: PSI is symmetric provided the bins are the same, which they are when bin_types='fixed'
         
         Parameters
         ----------
             bin_types : str, optional
-                the method for choosing bins, either 'bins' or 'quantiles' (default is 'bins')
+                the method for choosing bins, either 'fixed' or 'quantiles' (default is 'fixed')
             n_bins : int, optional
                 the number of bins used to compute psi (default is 10)
         """
 
         # check for valid input
-        assert bin_types in ('bins', 'quantiles'), "bin_types must be in ('bins', 'quantiles')"
+        assert bin_types in ('fixed', 'quantiles'), "bin_types must be in ('fixed', 'quantiles')"
         if not self.binary_classification:
             warnings.warn("self.binary_classification must be True to run psi")
             return
@@ -807,7 +807,7 @@ class Experiment():
         self.explain_dir.mkdir(exist_ok=True)
         psi_df.to_csv(self.explain_dir/'psi.csv', index=False)
 
-    def _psi_compare(self, scores1, scores2, bin_types='bins', n_bins=10):
+    def _psi_compare(self, scores1, scores2, bin_types='fixed', n_bins=10):
         """
         Compute Population Stability Index (PSI) between two datasets.
 
@@ -818,21 +818,23 @@ class Experiment():
             scores2 : numpy.ndarray or pandas.core.series.Series
                 scores for the other dataset
             bin_types : str, optional
-                the method for choosing bins, either 'bins' or 'quantiles' (default is 'bins')
+                the method for choosing bins, either 'fixed' or 'quantiles' (default is 'fixed')
             n_bins : int, optional
                 the number of bins used to compute psi (default is 10)
         ...
         """
 
         # get bins
-        if bin_types == 'bins':
-            bins = [i / n_bins for i in range(n_bins + 1)]
+        min_val = min(min(scores1), min(scores2)) # TODO? could bring this up a function for efficiency
+        max_val = max(min(scores1), max(scores2))
+        if bin_types == 'fixed':
+            bins = [min_val + (max_val - min_val) * i / n_bins for i in range(n_bins + 1)]
         elif bin_types == 'quantiles':
             bins = pd.qcut(scores1, q=n_bins, retbins=True, duplicates='drop')[1]
-            n_bins = len(bins) + 1 # some bins could be dropped due to duplication
+            n_bins = len(bins) - 1 # some bins could be dropped due to duplication
         eps = 1e-6
-        bins[0] = -eps
-        bins[-1] = 1 + eps
+        bins[0] -= -eps
+        bins[-1] += eps
 
         # group data into bins and get percentage rates
         scores1_bins = pd.cut(scores1, bins=bins, labels=range(n_bins))
@@ -851,6 +853,10 @@ class Experiment():
         # calculate psi
         psi_vals = (grp_rates['rate1'] - grp_rates['rate2']) * np.log(grp_rates['rate1'] / grp_rates['rate2'])
         return psi_vals.mean()
+
+    def gen_csi(self, bin_types='fixed', n_bins=10):
+        ...
+
 
     def gen_scores(self):
         """Save model scores for each row"""
