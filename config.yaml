@@ -165,18 +165,13 @@ tuning_parameters:
       low: 0
       high: 5
 
-# Model explainability
+
+#-----------------------------------
+#------ Model explainability -------
+#-----------------------------------
 permutation_importance: False
 perm_imp_metrics: [roc_auc, average_precision, neg_log_loss]
 perm_imp_n_repeats: 10
-
-shap: False # True or False; True => generate shap charts
-shap_sample: 50000 #
-
-psi: True
-psi_bin_types: fixed
-psi_n_bins: 10
-
 # permutation_importance
   # not required, default False, type: boolean
   # valid values: True, False
@@ -191,6 +186,9 @@ psi_n_bins: 10
   # valid values: int > 10
   # meaning: number of times to permute each feature in permutation feature importance
 
+
+shap: False # True or False; True => generate shap charts
+shap_sample: 50000 #
 # shap
   # not required, default False, type: boolean
   # valid values: True, False
@@ -201,6 +199,10 @@ psi_n_bins: 10
   # meaning: use only shap_sample random rows to construct shap charts
     # shap_sample is None => use all rows
 
+
+psi: True
+psi_bin_types: fixed
+psi_n_bins: 10
 # psi
   # not required, default False, type: boolean
   # valid values: True, False
@@ -213,5 +215,24 @@ psi_n_bins: 10
   # not required, default 10, type: None or int (or str that casts to int)
   # valid values: None or int > 1
   # meaning: number of bins to use in psi calculation
+
+
+csi: True
+csi_bin_types: fixed
+csi_n_bins: 10
+# csi
+  # not required, default False, type: boolean
+  # valid values: True, False
+  # meaning: True => generate csi for all features in all pairs of datasets
+# csi_bin_types
+  # not required, default 'fixed', type: string
+  # valid values: 'fixed', 'quantiles'
+  # meaning: when to use evenly spaced bins or quantiles when calculating csi
+# csi_n_bins
+  # not required, default 10, type: None or int (or str that casts to int)
+  # valid values: None or int > 1
+  # meaning: number of bins to use in csi calculation
+
+
 
 

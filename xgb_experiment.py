@@ -126,18 +126,18 @@ if __name__ == "__main__":
 # read shap paper
 # add README.md with examples
 # change prints to logs and save logs to file?
-# consider other features
-    # dask progress bar?
-# run linter over code
-# clean up, document, and reorganize config (logical sections with names/headers?)
-# PSI, CSI
-# unit tests (pytest)
 # cross validation
+    # make it so I don't require (validation or test (just one of them?))
     # cross_validate: True in config
         # then just use Train and Test 
     # need other params
         # type of CV (regular, stratified, etc.)
         # number of folds
+# consider other features
+    # dask progress bar?
+# run linter over code
+# clean up, document, and reorganize config (logical sections with names/headers?)
+# unit tests (pytest)
 # Calibrate score
 # use isinstance() in more places?
 # Curriculum learning sequences

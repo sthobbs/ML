@@ -105,6 +105,9 @@ class Experiment():
         self.psi = self.config.get("psi", False)
         self.psi_bin_types = self.config.get("psi_bin_types", "fixed")
         self.psi_n_bins = self.config.get("psi_n_bins", 10)
+        self.csi = self.config.get("csi", False)
+        self.csi_bin_types = self.config.get("csi_bin_types", "fixed")
+        self.csi_n_bins = self.config.get("csi_n_bins", 10)
         self.data = {} # where data will be stored
         self.aux_data = {} # where auxiliary fields will be stored
         self.model = None
@@ -130,7 +133,8 @@ class Experiment():
             'score_dir', 'label', 'verbose', 'hyperparameter_eval_metric',
             'tuning_algorithm', 'tuning_iterations', 'tuning_parameters',
             'permutation_importance', 'perm_imp_metrics', 'perm_imp_n_repeats',
-            'shap', 'shap_sample', 'psi', 'psi_bin_types', 'psi_n_bins'
+            'shap', 'shap_sample', 'psi', 'psi_bin_types', 'psi_n_bins',
+            'csi', 'csi_bin_types', 'csi_n_bins'
         }
         valid_keys = required_keys.union(other_valid_keys)
         keys_with_required_vals = {
@@ -308,32 +312,34 @@ class Experiment():
             except Exception as e:
                 raise ConfigError(f"shap_sample exception converting to int: {e}")
 
-        # check psi_bin_types (either no key, None, 'fixed' or 'quantiles')
-        psi_bin_types = self.config.get("psi_bin_types", None)
-        if psi_bin_types not in {None, 'fixed', 'quantiles'}:
-            msg = "if psi_bin_types is present, it must be 'fixed', 'quantiles', or empty"
-            raise ConfigError(msg)
+        # check psi_bin_types and csi_n_bins (either no key, None, 'fixed' or 'quantiles')
+        for feature in ('psi_bin_types', 'csi_bin_types'):
+            bin_types = self.config.get(feature, None)
+            if bin_types not in {None, 'fixed', 'quantiles'}:
+                msg = f"if {feature} is present, it must be 'fixed', 'quantiles', or empty"
+                raise ConfigError(msg)
 
-        # check psi_n_bins (either no key, None or castable to int (>1))
-        psi_n_bins = self.config.get("psi_n_bins", None)
-        if psi_n_bins is not None:
-            try:
-                int(psi_n_bins)
-            except Exception as e:
-                raise ConfigError(f"psi_n_bins exception converting to int: {e}")
-            if int(psi_n_bins) <= 1:
-                raise ConfigError(f"if psi_n_bins is an int, it should be > 1")
+        # check psi_n_bins and csi_n_bins (either no key, None or castable to int (>1))
+        for feature in ('psi_n_bins', 'csi_n_bins'):
+            n_bins = self.config.get(feature, None)
+            if n_bins is not None:
+                try:
+                    int(n_bins)
+                except Exception as e:
+                    raise ConfigError(f"{feature} exception converting to int: {e}")
+                if int(n_bins) <= 1:
+                    raise ConfigError(f"if {feature} is an int, it should be > 1")
 
         # check required boolean keys
         boolean_keys = {
-            'save_scores', 'supervised', 'binary_classification','hyperparameter_tuning'
+            'save_scores', 'supervised', 'binary_classification', 'hyperparameter_tuning'
         }
         for k in boolean_keys:
             if self.config[k] not in (True, False, None):
                 raise ConfigError(f"{k} must be True, False, or empty")
         
         # check non-required boolean keys
-        boolean_keys = {'permutation_importance', 'shap', 'psi'}
+        boolean_keys = {'permutation_importance', 'shap', 'psi', 'csi'}
         for k in boolean_keys:
             if self.config.get(k, None) not in (True, False, None):
                 raise ConfigError(f"if {k} is present, it must be True, False, or empty")
@@ -688,7 +694,7 @@ class Experiment():
                     stds = pd.Series(r[m]['importances_std'], name=f"{m}_std")
                     imps.extend([means, stds])
                 df = pd.concat(imps, axis=1) # dataframe of importance means and stds
-                df.index = self.features
+                df.index = self.features[:]
                 df.sort_values(f"{metrics[0]}_mean", ascending=False, inplace=True)
                 df.to_csv(f'{self.explain_dir}/permutation_importance_{name}.csv')
 
@@ -696,8 +702,13 @@ class Experiment():
         if self.shap:
             self.plot_shap()
 
+        # Generate PSI Table
         if self.psi:
             self.gen_psi(bin_types=self.psi_bin_types, n_bins=self.psi_n_bins)
+
+        # Generate CSI Table
+        if self.csi:
+            self.gen_csi(bin_types=self.csi_bin_types, n_bins=self.csi_n_bins)
 
     def plot_shap(self):
         """Generate model explanitory charts involving shap values."""
@@ -773,11 +784,10 @@ class Experiment():
                 the number of bins used to compute psi (default is 10)
         """
 
+        print(f"\n-----Generating PSI-----")
+
         # check for valid input
         assert bin_types in ('fixed', 'quantiles'), "bin_types must be in ('fixed', 'quantiles')"
-        if not self.binary_classification:
-            warnings.warn("self.binary_classification must be True to run psi")
-            return
 
         # intialize output dataframe
         psi_df = pd.DataFrame(columns=['dataset1', 'dataset2', 'psi'])
@@ -855,8 +865,67 @@ class Experiment():
         return psi_vals.mean()
 
     def gen_csi(self, bin_types='fixed', n_bins=10):
-        ...
+        """
+        Generate Characteristic Stability Index (CSI) values for all features between all pairs of datasets.
 
+        Note: CSI is symmetric provided the bins are the same, which they are when bin_types='fixed'
+        
+        Parameters
+        ----------
+            bin_types : str, optional
+                the method for choosing bins, either 'fixed' or 'quantiles' (default is 'fixed')
+            n_bins : int, optional
+                the number of bins used to compute csi (default is 10)
+        """
+        
+        print(f"\n-----Generating CSI-----")
+
+        # check for valid input
+        assert bin_types in ('fixed', 'quantiles'), "bin_types must be in ('fixed', 'quantiles')"
+
+        # intialize output dataframe
+        csi_df = pd.DataFrame(columns=['dataset1', 'dataset2', 'feature', 'csi'])
+
+        for feature in tqdm(self.features):
+            
+            # get dictionary of values for the given feature from all datasets
+            vals_dict = {}
+            for dataset_name, dataset in self.data.items():
+                scores = dataset['X'][feature]
+                scores.sort_values()
+                vals_dict[dataset_name] = scores
+            
+            # compute csi for each pair of datasets
+            for i, dataset_name1 in enumerate(self.dataset_names):
+                for j in range(i+1, len(self.dataset_names)):
+                    dataset_name2 = self.dataset_names[j]
+                    scores1 = vals_dict[dataset_name1]
+                    scores2 = vals_dict[dataset_name2]
+                    csi_val = self._psi_compare(scores1, scores2, bin_types=bin_types, n_bins=n_bins)
+                    row = {
+                        'dataset1': dataset_name1,
+                        'dataset2': dataset_name2,
+                        'feature': feature,
+                        'csi': csi_val
+                    }
+                    csi_df = csi_df.append(row, ignore_index=True)
+            
+        # save output to csv
+        self.explain_dir.mkdir(exist_ok=True)
+        csi_df.sort_values('csi', ascending=False, inplace=True)
+        csi_df.to_csv(self.explain_dir/'csi_long.csv', index=False)
+
+        # convert csi dataframe to wide format
+        csi_df['datasets'] = csi_df['dataset1'] + '-' + csi_df['dataset2']
+        csi_df = csi_df[['feature','datasets','csi']]
+        csi_df.set_index('feature', inplace=True)
+        csi_df = csi_df.pivot(columns='datasets')['csi']
+        
+        # reorder to the same order as self.features, and save to csv
+        csi_df.reset_index(inplace=True)
+        csi_df['feature'] = pd.Categorical(csi_df['feature'], self.features)
+        csi_df = csi_df.sort_values("feature").set_index("feature")
+        csi_df.to_csv(self.explain_dir/'csi_wide.csv')
 
     def gen_scores(self):
         """Save model scores for each row"""
