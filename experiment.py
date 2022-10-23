@@ -33,7 +33,7 @@ class ConfigError(Exception):
 
 class Experiment():
     """
-    Class for training and evaluating ML models
+    Class for running ML model experiments
 
     Author:
        Steve Hobbs
@@ -813,6 +813,10 @@ class Experiment():
         """
         Generate Population Stability Index (PSI) values between all pairs of datasets.
 
+               PSI < 0.1 => no significant population change
+        0.1 <= PSI < 0.2 => moderate population change
+        0.2 <= PSI       => significant population change
+
         Note: PSI is symmetric provided the bins are the same, which they are when bin_types='fixed'
         
         Parameters
@@ -967,7 +971,12 @@ class Experiment():
         csi_df.to_csv(self.explain_dir/'csi_wide.csv')
 
     def gen_vif(self):
-        """Generate Variance Inflation Factor (VIF) tables for each dataset."""
+        """
+        Generate Variance Inflation Factor (VIF) tables for each dataset.
+
+        VIF = 1  => no correlation
+        VIF > 10 => high correlation between an independent variable and the others
+        """
 
         print(f"\n-----Generating VIF-----")
         
