@@ -169,6 +169,7 @@ tuning_parameters:
 #-----------------------------------
 #------ Model explainability -------
 #-----------------------------------
+
 permutation_importance: False
 perm_imp_metrics: [roc_auc, average_precision, neg_log_loss]
 perm_imp_n_repeats: 10
@@ -200,7 +201,7 @@ shap_sample: 50000 #
     # shap_sample is None => use all rows
 
 
-psi: True
+psi: False
 psi_bin_types: fixed
 psi_n_bins: 10
 # psi
@@ -217,7 +218,7 @@ psi_n_bins: 10
   # meaning: number of bins to use in psi calculation
 
 
-csi: True
+csi: False
 csi_bin_types: fixed
 csi_n_bins: 10
 # csi
@@ -233,6 +234,9 @@ csi_n_bins: 10
   # valid values: None or int > 1
   # meaning: number of bins to use in csi calculation
 
-
-
+vif: True
+# vif
+  # not required, default False, type: boolean
+  # valid values: True, False
+  # meaning: True => generate variance inflation factor (vif) for all features in all datasets
 

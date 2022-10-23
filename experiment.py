@@ -15,6 +15,7 @@ from shutil import copyfile
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 from hyperopt import fmin, rand, tpe, atpe, hp, STATUS_OK, Trials, pyll
+from statsmodels.stats.outliers_influence import variance_inflation_factor
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -95,19 +96,29 @@ class Experiment():
         self.tuning_algorithm = self.config.get("tuning_algorithm", None)
         self.tuning_iterations = self.config.get("tuning_iterations", None)
         self.tuning_parameters = self.config.get("tuning_parameters", None)
+
+        #------ Model explainability -------
+        # Permutation Importance
         self.permutation_importance = self.config.get("permutation_importance", False)
         self.perm_imp_metrics = self.config.get("perm_imp_metrics", "neg_log_loss")
         if isinstance(self.perm_imp_metrics, str):
             self.perm_imp_metrics = [self.perm_imp_metrics]
         self.perm_imp_n_repeats = int(self.config.get("perm_imp_n_repeats", 10))
+        # Shapely Values
         self.shap = self.config.get("shap", False)
         self.shap_sample = self.config.get("shap_sample", None)
+        # Population Stability Index
         self.psi = self.config.get("psi", False)
         self.psi_bin_types = self.config.get("psi_bin_types", "fixed")
         self.psi_n_bins = self.config.get("psi_n_bins", 10)
+        # Characteristic Stability Index
         self.csi = self.config.get("csi", False)
         self.csi_bin_types = self.config.get("csi_bin_types", "fixed")
         self.csi_n_bins = self.config.get("csi_n_bins", 10)
+        # Variance Inflation Factor
+        self.vif = self.config.get("vif", False)
+        
+
         self.data = {} # where data will be stored
         self.aux_data = {} # where auxiliary fields will be stored
         self.model = None
@@ -134,7 +145,7 @@ class Experiment():
             'tuning_algorithm', 'tuning_iterations', 'tuning_parameters',
             'permutation_importance', 'perm_imp_metrics', 'perm_imp_n_repeats',
             'shap', 'shap_sample', 'psi', 'psi_bin_types', 'psi_n_bins',
-            'csi', 'csi_bin_types', 'csi_n_bins'
+            'csi', 'csi_bin_types', 'csi_n_bins', 'vif'
         }
         valid_keys = required_keys.union(other_valid_keys)
         keys_with_required_vals = {
@@ -339,7 +350,7 @@ class Experiment():
                 raise ConfigError(f"{k} must be True, False, or empty")
         
         # check non-required boolean keys
-        boolean_keys = {'permutation_importance', 'shap', 'psi', 'csi'}
+        boolean_keys = {'permutation_importance', 'shap', 'psi', 'csi', 'vif'}
         for k in boolean_keys:
             if self.config.get(k, None) not in (True, False, None):
                 raise ConfigError(f"if {k} is present, it must be True, False, or empty")
@@ -685,6 +696,7 @@ class Experiment():
             self.explain_dir.mkdir(exist_ok=True)
             metrics = self.perm_imp_metrics
             for name in self.dataset_names:
+                print(f"running permutation importance on {name} data")
                 r = permutation_importance(self.model, **self.data[name],
                     n_repeats=self.perm_imp_n_repeats, random_state=self.seed,
                     scoring=metrics)
@@ -709,6 +721,10 @@ class Experiment():
         # Generate CSI Table
         if self.csi:
             self.gen_csi(bin_types=self.csi_bin_types, n_bins=self.csi_n_bins)
+
+        # Generate VIF table
+        if self.vif:
+            self.gen_vif()
 
     def plot_shap(self):
         """Generate model explanitory charts involving shap values."""
@@ -927,12 +943,28 @@ class Experiment():
         csi_df = csi_df.sort_values("feature").set_index("feature")
         csi_df.to_csv(self.explain_dir/'csi_wide.csv')
 
+    def gen_vif(self):
+        """Generate Variance Inflation Factor (VIF) tables for each dataset."""
+
+        print(f"\n-----Generating VIF-----")
+        
+        # make directory for VIF tables
+        vif_dir = self.explain_dir / "vif"
+        vif_dir.mkdir(parents=True, exist_ok=True)
+
+        # calculate VIF values for each feature in each dataset
+        for dataset_name, dataset in tqdm(self.data.items()):
+            df = pd.DataFrame({'feature': self.features})
+            X = dataset['X'].values
+            df["vif"] = [variance_inflation_factor(X, i) for i in range(len(self.features))]
+            df.to_csv(vif_dir/f'vif_{dataset_name}.csv', index=False)
+
     def gen_scores(self):
         """Save model scores for each row"""
 
         print(f"\n-----Generating Scores-----")
         self.score_dir.mkdir(exist_ok=True)
-        for dataset_name, dataset in self.data.items():
+        for dataset_name, dataset in tqdm(self.data.items()):
             scores = self.model.predict_proba(dataset['X'])[:,1]
             scores = pd.Series(scores, name='score', index=dataset['y'].index)
             df = pd.concat([dataset['y'], scores, self.aux_data[dataset_name]], axis=1)
