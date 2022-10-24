@@ -1000,6 +1000,23 @@ class Experiment():
             df.to_csv(vif_dir/f'vif_{dataset_name}.csv', index=False)
 
     def gen_woe_iv(self, bin_types='quantiles', n_bins=10):
+        """
+        Generate Weight of Evidence and Information Value tables for each dataset.
+
+                IV < 0.02 => not useful for prediction
+        0.02 <= IV < 0.1  => weak predictive power
+        0.1  <= IV < 0.3  => medium predictive power
+        0.3  <= IV < 0.5  => strong predictive power
+        0.5  <= IV        => suspicious predictive power
+
+        Parameters
+        ----------
+            bin_types : str, optional
+                the method for choosing bins, either 'fixed' or 'quantiles' (default is 'quantiles')
+            n_bins : int, optional
+                the number of bins used to compute woe and iv (default is 10)
+        """
+
 
         if not self.binary_classification:
             msg = "self.binary_classification must be True to run .gen_woe_iv()"
@@ -1078,11 +1095,6 @@ class Experiment():
             iv_df.sort_values('adj_iv', ascending=False, inplace=True)
             iv_df.index.name = 'index'
             iv_df.to_csv(woe_dir/f'iv_{dataset_name}.csv')
-
-
-
-
-
 
     def gen_scores(self):
         """Save model scores for each row"""
