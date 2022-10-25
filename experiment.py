@@ -4,8 +4,9 @@ import dask.dataframe as dd
 import xgboost as xgb
 from sklearn import ensemble, tree, neural_network, neighbors, linear_model, cluster, base
 from sklearn.utils import shuffle
-from sklearn.model_selection import ParameterGrid
+from sklearn.model_selection import ParameterGrid, cross_val_score
 from sklearn.inspection import permutation_importance
+from sklearn.metrics import make_scorer
 import shap
 import numpy as np
 from pathlib import Path
@@ -92,8 +93,9 @@ class Experiment():
         np.random.seed(self.seed)
         self.hyperparameters = self.config["hyperparameters"]
         self.hyperparameters["random_state"] = self.seed
-        self.hyperparameter_tuning = self.config["hyperparameter_tuning"]
-        self.hyperparameter_eval_metric = self.config.get("hyperparameter_eval_metric", None)
+        self.hyperparameter_tuning = self.config.get("hyperparameter_tuning", False)
+        self.hyperparameter_eval_metric = self.config.get("hyperparameter_eval_metric", "log_loss")
+        self.cross_validation = self.config.get("cross_validation", False)
         self.tuning_algorithm = self.config.get("tuning_algorithm", None)
         self.tuning_iterations = self.config.get("tuning_iterations", None)
         self.tuning_parameters = self.config.get("tuning_parameters", None)
@@ -146,11 +148,12 @@ class Experiment():
             'input_model_path', 'experiment_dir', 'performance_dir', 
             'model_dir', 'explain_dir', 'save_scores', 'model_type',
             'supervised', 'binary_classification', 'features', 'aux_fields',
-            'seed', 'hyperparameters', 'hyperparameter_tuning'
+            'seed', 'hyperparameters',
         }
         other_valid_keys = {
-            'score_dir', 'label', 'verbose', 'hyperparameter_eval_metric',
-            'tuning_algorithm', 'tuning_iterations', 'tuning_parameters',
+            'score_dir', 'label', 'verbose', 'hyperparameter_tuning', 
+            'hyperparameter_eval_metric', 'cross_validation', 'tuning_algorithm',
+            'tuning_iterations', 'tuning_parameters',
             'permutation_importance', 'perm_imp_metrics', 'perm_imp_n_repeats',
             'shap', 'shap_sample', 'psi', 'psi_bin_types', 'psi_n_bins',
             'csi', 'csi_bin_types', 'csi_n_bins', 'vif', 'woe_iv',
@@ -161,7 +164,7 @@ class Experiment():
             'version', 'description', 'data_dir', 'data_file_patterns',
             'experiment_dir', 'performance_dir', 'model_dir', 'explain_dir',
             'save_scores', 'model_type', 'supervised', 'features',
-            'seed', 'hyperparameter_tuning'
+            'seed'
         }
         keys = set(self.config.keys())
         keys_with_vals = {k for k, v in self.config.items() if v is not None}
@@ -246,7 +249,7 @@ class Experiment():
                     raise ConfigError(f"{m} is not a valid eval_metric")
         
         # check that hyperparamter tuning algorithm is valid
-        if self.config["hyperparameter_tuning"]:
+        if self.config.get("hyperparameter_tuning", False):
             if self.config.get("tuning_algorithm", None) not in {"grid", "random", "tpe", "atpe"}:
                 msg = f'tuning_algorithm value must be in {"grid", "random", "tpe", "atpe"}'
                 raise ConfigError(msg)
@@ -254,15 +257,12 @@ class Experiment():
                 if not self.config.get("tuning_iterations", None):
                     msg = "must specify tuning_iterations for the chosen tuning_algorithm"
                     raise ConfigError(msg)
-            if "hyperparameter_eval_metric" not in self.config:
-                msg = "must include hyperparameter_eval_metric when hyperparameter_tuning is True"
-                raise ConfigError(msg)
             valid_metrics = {'average_precision', 'aucpr', 'auc', 'log_loss', 'brier_loss'}
-            if self.config["hyperparameter_eval_metric"] not in valid_metrics:
+            if self.config.get("hyperparameter_eval_metric", "log_loss") not in valid_metrics:
                 raise ConfigError(f"invalid hyperparameter_eval_metric value")
 
         # check that tuning_parameters is valid
-        if self.config["hyperparameter_tuning"]:
+        if self.config.get("hyperparameter_tuning", False):
             # check tuning_parameters has a value
             if not self.config["tuning_parameters"]:
                 msg = "when hyperparameter_tuning is True, tuning_parameters must be specified"
@@ -352,14 +352,17 @@ class Experiment():
 
         # check required boolean keys
         boolean_keys = {
-            'save_scores', 'supervised', 'binary_classification', 'hyperparameter_tuning'
+            'save_scores', 'supervised', 'binary_classification'
         }
         for k in boolean_keys:
             if self.config[k] not in {True, False, None}:
                 raise ConfigError(f"{k} must be True, False, or empty")
         
         # check non-required boolean keys
-        boolean_keys = {'permutation_importance', 'shap', 'psi', 'csi', 'vif', 'woe_iv', 'correlation'}
+        boolean_keys = {
+            'cross_validation', 'permutation_importance', 'shap', 'psi', 'csi',
+            'vif', 'woe_iv', 'correlation',
+        }
         for k in boolean_keys:
             if self.config.get(k, None) not in {True, False, None}:
                 raise ConfigError(f"if {k} is present, it must be True, False, or empty")
@@ -653,13 +656,21 @@ class Experiment():
         
         # train model
         self.model.set_params(**param_dict)
-        self.model.fit(**self.data['train'])
-        
-        # evaluate model (based on self.hyperparameter_eval_metric)
-        y_true = self.data['validation']['y']
-        y_score = self.model.predict_proba(self.data['validation']['X'])
         metric = self.hyperparameter_eval_metric
-        score = metric_score(y_true, y_score, metric)
+
+        if self.cross_validation:
+            # make evaluation scorer
+            scorer = make_scorer(metric_score, metric=metric)
+            # run cv to train and evaluate model
+            cv_scores = cross_val_score(self.model, **self.data['train'], scoring=scorer) # .....
+            score = cv_scores.mean()
+        else:
+            # train model
+            self.model.fit(**self.data['train'])
+            # evaluate model (based on self.hyperparameter_eval_metric)
+            y_true = self.data['validation']['y']
+            y_score = self.model.predict_proba(self.data['validation']['X'])
+            score = metric_score(y_true, y_score, metric)
         
         # print and log results
         print(f"{metric}: {score}")
