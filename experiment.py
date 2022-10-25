@@ -13,6 +13,7 @@ import yaml, pickle, os, time, random
 from datetime import datetime
 from shutil import copyfile
 import matplotlib.pyplot as plt
+import seaborn as sns
 from tqdm import tqdm
 from hyperopt import fmin, rand, tpe, atpe, hp, STATUS_OK, Trials, pyll
 from statsmodels.stats.outliers_influence import variance_inflation_factor
@@ -121,7 +122,11 @@ class Experiment():
         self.woe_iv = self.config.get("woe_iv", False)
         self.woe_bin_types = self.config.get("woe_bin_types", "quantiles")
         self.woe_n_bins = self.config.get("woe_n_bins", 10)
+        # Correlation
+        self.correlation = self.config.get("correlation", False)
+        self.corr_max_features = self.config.get("corr_max_features", 100)
 
+        # Other
         self.data = {} # where data will be stored
         self.aux_data = {} # where auxiliary fields will be stored
         self.model = None
@@ -149,7 +154,7 @@ class Experiment():
             'permutation_importance', 'perm_imp_metrics', 'perm_imp_n_repeats',
             'shap', 'shap_sample', 'psi', 'psi_bin_types', 'psi_n_bins',
             'csi', 'csi_bin_types', 'csi_n_bins', 'vif', 'woe_iv',
-            'woe_bin_types', 'woe_n_bins'
+            'woe_bin_types', 'woe_n_bins', 'correlation', 'corr_max_features'
         }
         valid_keys = required_keys.union(other_valid_keys)
         keys_with_required_vals = {
@@ -242,10 +247,10 @@ class Experiment():
         
         # check that hyperparamter tuning algorithm is valid
         if self.config["hyperparameter_tuning"]:
-            if self.config.get("tuning_algorithm", None) not in ("grid", "random", "tpe", "atpe"):
-                msg = f'tuning_algorithm value must be in ("grid", "random", "tpe", "atpe")'
+            if self.config.get("tuning_algorithm", None) not in {"grid", "random", "tpe", "atpe"}:
+                msg = f'tuning_algorithm value must be in {"grid", "random", "tpe", "atpe"}'
                 raise ConfigError(msg)
-            if self.config["tuning_algorithm"] in ("random", "tpe", "atpe"):
+            if self.config["tuning_algorithm"] in {"random", "tpe", "atpe"}:
                 if not self.config.get("tuning_iterations", None):
                     msg = "must specify tuning_iterations for the chosen tuning_algorithm"
                     raise ConfigError(msg)
@@ -272,7 +277,7 @@ class Experiment():
                     if not isinstance(v, list):
                         raise ConfigError(f"The tuning_parameters value of {k} must be a list")
             # for hyperopt search, check that tuning_parameters specifies valid values
-            if self.config["tuning_algorithm"] in ("random", "tpe", "atpe"):
+            if self.config["tuning_algorithm"] in {"random", "tpe", "atpe"}:
                 for hyperparameter, distribution in self.config["tuning_parameters"].items():
                     # check that both the function and params are specified
                     if set(distribution.keys()) != {'function', 'params'}:
@@ -328,14 +333,14 @@ class Experiment():
                 raise ConfigError(f"shap_sample exception converting to int: {e}")
 
         # check psi_bin_types, csi_bin_types, and woe_bin_types (no key, None, 'fixed' or 'quantiles')
-        for feature in ('psi_bin_types', 'csi_bin_types', 'woe_bin_types'):
+        for feature in {'psi_bin_types', 'csi_bin_types', 'woe_bin_types'}:
             bin_types = self.config.get(feature, None)
             if bin_types not in {None, 'fixed', 'quantiles'}:
                 msg = f"if {feature} is present, it must be 'fixed', 'quantiles', or empty"
                 raise ConfigError(msg)
 
-        # check psi_n_bins, csi_n_bins, and woe_n_bins (no key, None or castable to int (>1))
-        for feature in ('psi_n_bins', 'csi_n_bins', 'woe_n_bins'):
+        # check psi_n_bins, csi_n_bins, woe_n_bins, corr_max_features (no key, None, or castable to int (>1))
+        for feature in {'psi_n_bins', 'csi_n_bins', 'woe_n_bins', 'corr_max_features'}:
             n_bins = self.config.get(feature, None)
             if n_bins is not None:
                 try:
@@ -350,13 +355,13 @@ class Experiment():
             'save_scores', 'supervised', 'binary_classification', 'hyperparameter_tuning'
         }
         for k in boolean_keys:
-            if self.config[k] not in (True, False, None):
+            if self.config[k] not in {True, False, None}:
                 raise ConfigError(f"{k} must be True, False, or empty")
         
         # check non-required boolean keys
-        boolean_keys = {'permutation_importance', 'shap', 'psi', 'csi', 'vif', 'woe_iv'}
+        boolean_keys = {'permutation_importance', 'shap', 'psi', 'csi', 'vif', 'woe_iv', 'correlation'}
         for k in boolean_keys:
-            if self.config.get(k, None) not in (True, False, None):
+            if self.config.get(k, None) not in {True, False, None}:
                 raise ConfigError(f"if {k} is present, it must be True, False, or empty")
 
     def run(self):
@@ -535,7 +540,7 @@ class Experiment():
             best_params = self._grid_search()
         
         # run random search, tpe, or atpe hyperparameter optimization algorithm 
-        elif self.tuning_algorithm in ("random", "tpe", "atpe"):
+        elif self.tuning_algorithm in {"random", "tpe", "atpe"}:
             best_params = self._hyperopt_search()
         
         # write best params to file
@@ -720,6 +725,10 @@ class Experiment():
         if self.woe_iv and self.binary_classification:
             self.gen_woe_iv()
 
+        # Generate Correlation Matrix and Heatmap
+        if self.correlation:
+            self.gen_corr(max_features=self.corr_max_features)
+
     def gen_permutation_importance(self, n_repeats=10, metrics='neg_log_loss'):
         """
         Generate permutation feature importance tables.
@@ -838,7 +847,7 @@ class Experiment():
         print(f"\n-----Generating PSI-----")
 
         # check for valid input
-        assert bin_types in ('fixed', 'quantiles'), "bin_types must be in ('fixed', 'quantiles')"
+        assert bin_types in {'fixed', 'quantiles'}, "bin_types must be in {'fixed', 'quantiles'}"
 
         # intialize output dataframe
         psi_df = pd.DataFrame(columns=['dataset1', 'dataset2', 'psi'])
@@ -932,7 +941,7 @@ class Experiment():
         print(f"\n-----Generating CSI-----")
 
         # check for valid input
-        assert bin_types in ('fixed', 'quantiles'), "bin_types must be in ('fixed', 'quantiles')"
+        assert bin_types in {'fixed', 'quantiles'}, "bin_types must be in {'fixed', 'quantiles'}"
 
         # intialize output dataframe
         csi_df = pd.DataFrame(columns=['dataset1', 'dataset2', 'feature', 'csi'])
@@ -1017,7 +1026,6 @@ class Experiment():
                 the number of bins used to compute woe and iv (default is 10)
         """
 
-
         if not self.binary_classification:
             msg = "self.binary_classification must be True to run .gen_woe_iv()"
             warnings.warn(msg)
@@ -1095,6 +1103,163 @@ class Experiment():
             iv_df.sort_values('adj_iv', ascending=False, inplace=True)
             iv_df.index.name = 'index'
             iv_df.to_csv(woe_dir/f'iv_{dataset_name}.csv')
+
+    def gen_corr(self, max_features=100):
+        """
+        Generate correlation matrix and heatmap for each dataset.
+
+        Parameters
+        ----------
+            max_features : int, optional
+                the maximum number of features allowed for charts and plots to be generated
+        """
+
+        # check input
+        if len(self.features) > max_features:
+            msg = (f"not computing correlation matrix since there are {len(self.features)}"
+                   f" features, which more than max_features = {max_features}")
+            warnings.warn(msg)
+            return
+        
+        print(f"\n-----Generating Correlation Charts-----")
+
+        # make output directory
+        corr_dir = self.explain_dir / 'correlation'
+        corr_dir.mkdir(parents=True, exist_ok=True)
+
+        for dataset_name, dataset in self.data.items():
+            print(f"generating correlations for {dataset_name} dataset")
+            corr = dataset['X'].corr()
+            corr_long = pd.melt(corr.reset_index(), id_vars='index') # unpivot to long format
+            # write to csv
+            corr.index.name = 'feature'
+            corr.to_csv(corr_dir/f'corr_{dataset_name}.csv')
+            corr_long.rename(columns={'variable': 'feature_1', 'index': 'feature_2', 'value': 'correlation'}, inplace=True)
+            corr_long = corr_long.reindex(columns=['feature_1', 'feature_2', 'correlation']) # reorder columns
+            corr_long = corr_long[corr_long.feature_1 != corr_long.feature_2]
+            corr_long.sort_values('correlation', key=abs, ascending=False, inplace=True)
+            corr_long.to_csv(corr_dir/f'corr_{dataset_name}_long.csv', index=False)
+            # plot heat map
+            self.plot_corr_heatmap(corr, corr_dir/f'heatmap_{dataset_name}.png', data_type='corr')
+
+
+    def plot_corr_heatmap(self, data, output_path, data_type='corr'):
+        """
+        Plot correlation heat map.
+
+        Parameters
+        ----------
+            data : dataframe
+                input data, either raw data, or correlation matrix, or long-format correlation matrix
+            output_path : str
+                the location where the plot should be written.
+                note that this function assumes that the parent folder exists.
+            data_type : str, optional
+                the type of input passed into the data argument (default is 'corr')
+                - 'features' => the raw feature table is passed in
+                - 'corr' => a correlation matrix is passed in
+                - 'corr_long' => a correlation matrix converted to long format is passed in
+
+        Credits: https://towardsdatascience.com/better-heatmaps-and-correlation-matrix-plots-in-python-41445d0f2bec
+        """
+
+        # check inputs
+        valid_data_types = {'features', 'corr', 'corr_long'}
+        assert data_type in valid_data_types, f"invalid data_type: {data_type}"
+
+        # process data into long-format correlation matrix, if required
+        if data_type == 'features':
+            data = data.corr()
+        if data_type in {'features', 'corr'}:
+            data.index.name = 'index'
+            data = pd.melt(data.reset_index(), id_vars='index') # unpivot to long format
+            data = data.reindex(columns=['variable', 'index', 'value']) # reorder columns
+        data.columns = ['feature_1', 'feature_2', 'correlation']
+
+        features = self.features
+
+        # set up colours
+        n_colors = 256 # Use 256 colors for the diverging color palette
+        palette = sns.diverging_palette(20, 220, n=n_colors) # Create the palette
+        color_min, color_max = [-1, 1] # Range of values that will be mapped to the palette, i.e. min and max possible correlation
+
+        def value_to_color(val):
+            val_position = float((val - color_min)) / (color_max - color_min) # position of value in the input range, relative to the length of the input range
+            ind = int(val_position * (n_colors - 1)) # target index in the color palette
+            return palette[ind]  
+
+        # parameterize sizes of objects in the image
+        size_factor = 1
+        plot_size = len(features) * size_factor
+        figsize = (plot_size * 15 / 14, plot_size) # multiple by 15/14 so the left main plot is square
+        font_size = 20 * size_factor
+        square_size_scale = (40 * size_factor) ** 2
+        size = data['correlation'].abs() # size of squares is dependend on absolute correlation
+        
+        # map feature to integer coordinates
+        feat_to_num = {feature: i for i, feature in enumerate(features)} 
+
+        with plt.style.context('seaborn-darkgrid'): 
+         
+            # create figure
+            fig = plt.figure(figsize=figsize, dpi=50)
+            plot_grid = plt.GridSpec(1, 15, hspace=0.2, wspace=0.1) # Setup a 1x15 grid
+            
+            # Use the leftmost 14 columns of the grid for the main plot
+            ax = plt.subplot(plot_grid[:,:-1])
+
+            # make main plot
+            ax.scatter(
+                x=data['feature_1'].map(feat_to_num), # Use mapping for feature 1
+                y=data['feature_2'].map(feat_to_num), # Use mapping for feature 2
+                s=size * square_size_scale, # Vector of square sizes, proportional to size parameter
+                c=data['correlation'].apply(value_to_color), # Vector of square color values, mapped to color palette
+                marker='s' # Use square as scatterplot marker
+            )
+            
+            # Show column labels on the axes
+            ax.set_xticks([feat_to_num[v] + 0.3 for v in features]) # add major ticks for the labels
+            ax.set_yticks([feat_to_num[v] for v in features])
+            ax.set_xticklabels(features, rotation=45, horizontalalignment='right', fontsize=font_size) # add labels
+            ax.set_yticklabels(features, fontsize=font_size)
+            ax.grid(False, 'major') # hide major grid lines
+            ax.grid(True, 'minor')
+            ax.set_xticks([feat_to_num[v] + 0.5 for v in features], minor=True) # add minor ticks for grid lines
+            ax.set_yticks([feat_to_num[v] + 0.5 for v in features], minor=True)
+
+            # set axis limits
+            ax.set_xlim([-0.5, len(features) - 0.5]) 
+            ax.set_ylim([-0.5, len(features) - 0.5])
+
+            # hide all ticks
+            plt.tick_params(axis='both', which='both', bottom=False, left=False)        
+
+            # Add color legend on the right side of the plot
+            ax = plt.subplot(plot_grid[:,-1]) # Use the rightmost column of the plot
+
+            col_x = [0] * len(palette) # Fixed x coordinate for the bars
+            bar_y = np.linspace(color_min, color_max, n_colors) # y coordinates for each of the n_colors bars
+
+            bar_height = bar_y[1] - bar_y[0]
+            ax.barh(
+                y=bar_y,
+                width=[5]*len(palette), # Make bars 5 units wide
+                left=col_x, # Make bars start at 0
+                height=bar_height,
+                color=palette,
+                linewidth=0
+            )
+            ax.set_xlim(1, 2) # Bars are going from 0 to 5, so lets crop the plot somewhere in the middle
+            ax.grid(False) # Hide grid
+            ax.set_facecolor('white') # Make background white
+            ax.set_xticks([]) # Remove horizontal ticks
+            ax.set_yticks(np.linspace(min(bar_y), max(bar_y), 3)) # Show vertical ticks for min, middle and max
+            ax.set_yticklabels([-1, 0, 1], fontsize=font_size)
+            ax.yaxis.tick_right() # Show vertical ticks on the right 
+
+            # save figure
+            plt.savefig(output_path, bbox_inches='tight')
+            plt.close()
 
     def gen_scores(self):
         """Save model scores for each row"""

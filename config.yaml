@@ -170,6 +170,8 @@ tuning_parameters:
 #------ Model explainability -------
 #-----------------------------------
 
+
+### Permutation Feature Importance
 permutation_importance: False
 perm_imp_metrics: [roc_auc, average_precision, neg_log_loss]
 perm_imp_n_repeats: 10
@@ -188,6 +190,7 @@ perm_imp_n_repeats: 10
   # meaning: number of times to permute each feature in permutation feature importance
 
 
+### Shapely Values
 shap: False # True or False; True => generate shap charts
 shap_sample: 50000 #
 # shap
@@ -201,6 +204,7 @@ shap_sample: 50000 #
     # shap_sample is None => use all rows
 
 
+### Population Stability Index
 psi: False
 psi_bin_types: fixed
 psi_n_bins: 10
@@ -218,6 +222,7 @@ psi_n_bins: 10
   # meaning: number of bins to use in psi calculation
 
 
+### Characteristic Stability Index
 csi: False
 csi_bin_types: fixed
 csi_n_bins: 10
@@ -234,13 +239,17 @@ csi_n_bins: 10
   # valid values: None or int > 1
   # meaning: number of bins to use in csi calculation
 
+
+### Variance Inflation Factor
 vif: False
 # vif
   # not required, default False, type: boolean
   # valid values: True, False
   # meaning: True => generate variance inflation factor (vif) for all features in all datasets
 
-woe_iv: True
+
+### Weight of Evidence & Information Value
+woe_iv: False
 woe_bin_types: quantiles
 woe_n_bins: 10
 # woe_iv
@@ -255,3 +264,17 @@ woe_n_bins: 10
   # not required, default 10, type: None or int (or str that casts to int)
   # valid values: None or int > 1
   # meaning: number of bins to use in woe and iv calculation
+
+
+### Correlation Matrix and Heatmap
+correlation: True
+corr_max_features: 100
+# correlation
+  # not required, default False, type: boolean
+  # valid values: True, False
+  # meaning: True => generate correlation matrix and heatmap for each dataset
+# corr_max_features
+  # not required, default 100, type: None or int (or str that casts to int)
+  # valid values: None or int > 1
+  # meaning: maximum number of features allowed for correlation matricies and heatmap to be generated.
+    # this is included to prevent long runtimes if there are too many features
