@@ -61,10 +61,17 @@ class Experiment():
         
         # Set variables
         self.config_path = Path(config_path)
+        
+        #------ Meta Config -------
         self.version = self.config["version"]
+        self.description = self.config["description"]
+
+        #------ Input Config -------
         self.data_dir = Path(self.config["data_dir"])
         self.data_file_patterns = self.config["data_file_patterns"]
         self.input_model_path = self.config.get("input_model_path", None)
+        
+        #------ Output Config -------
         self.experiment_dir = Path(self.config["experiment_dir"])
         now = datetime.now().strftime("%Y%m%d-%H%M%S") # current datetime
         self.output_dir = self.experiment_dir / f"{self.version}-{now}"
@@ -74,6 +81,8 @@ class Experiment():
         self.save_scores = self.config["save_scores"]
         if self.save_scores:
             self.score_dir = self.output_dir / self.config["score_dir"]
+        
+        #------ Job Config -------
         self.model_type = self.config["model_type"]
         self.supervised = self.config["supervised"]
         self.binary_classification = self.config["binary_classification"]
@@ -93,7 +102,7 @@ class Experiment():
         np.random.seed(self.seed)
         self.verbose = int(self.config.get("verbose", 10))
 
-        #------ Hyperparameters -------
+        # ------ Hyperparameters -------
         self.hyperparameters = self.config["hyperparameters"]
         self.hyperparameters["random_state"] = self.seed
         self.hyperparameter_tuning = self.config.get("hyperparameter_tuning", False)
@@ -105,7 +114,7 @@ class Experiment():
         self.tuning_iterations = self.config.get("tuning_iterations", None)
         self.tuning_parameters = self.config.get("tuning_parameters", None)
 
-        #------ Model explainability -------
+        # ------ Model explainability -------
         # Permutation Importance
         self.permutation_importance = self.config.get("permutation_importance", False)
         self.perm_imp_metrics = self.config.get("perm_imp_metrics", "neg_log_loss")
@@ -133,7 +142,7 @@ class Experiment():
         self.correlation = self.config.get("correlation", False)
         self.corr_max_features = self.config.get("corr_max_features", 100)
 
-        # Other
+        # ------ Other -------
         self.data = {} # where data will be stored
         self.aux_data = {} # where auxiliary fields will be stored
         self.model = None
