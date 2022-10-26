@@ -4,7 +4,7 @@ import dask.dataframe as dd
 import xgboost as xgb
 from sklearn import ensemble, tree, neural_network, neighbors, linear_model, cluster, base
 from sklearn.utils import shuffle
-from sklearn.model_selection import ParameterGrid, cross_val_score
+from sklearn.model_selection import ParameterGrid, cross_val_score, GridSearchCV, PredefinedSplit
 from sklearn.inspection import permutation_importance
 from sklearn.metrics import make_scorer
 import shap
@@ -92,12 +92,15 @@ class Experiment():
         random.seed(self.seed)
         np.random.seed(self.seed)
         self.verbose = int(self.config.get("verbose", 10))
+
+        #------ Hyperparameters -------
         self.hyperparameters = self.config["hyperparameters"]
         self.hyperparameters["random_state"] = self.seed
         self.hyperparameter_tuning = self.config.get("hyperparameter_tuning", False)
         self.hyperparameter_eval_metric = self.config.get("hyperparameter_eval_metric", "log_loss")
         self.cross_validation = self.config.get("cross_validation", False)
         self.tuning_algorithm = self.config.get("tuning_algorithm", None)
+        self.grid_search_n_jobs = self.config.get("grid_search_n_jobs", 1)
         self.tuning_iterations = self.config.get("tuning_iterations", None)
         self.tuning_parameters = self.config.get("tuning_parameters", None)
 
@@ -156,11 +159,12 @@ class Experiment():
         other_valid_keys = {
             'input_model_path', 'score_dir', 'label', 'aux_fields', 'verbose',
             'hyperparameter_tuning',  'hyperparameter_eval_metric',
-            'cross_validation', 'tuning_algorithm', 'tuning_iterations',
-            'tuning_parameters', 'permutation_importance', 'perm_imp_metrics',
-            'perm_imp_n_repeats', 'shap', 'shap_sample', 'psi', 'psi_bin_types',
-            'psi_n_bins', 'csi', 'csi_bin_types', 'csi_n_bins', 'vif', 'woe_iv',
-            'woe_bin_types', 'woe_n_bins', 'correlation', 'corr_max_features'
+            'cross_validation', 'tuning_algorithm', 'grid_search_n_jobs', 
+            'tuning_iterations', 'tuning_parameters', 'permutation_importance',
+            'perm_imp_metrics', 'perm_imp_n_repeats', 'shap', 'shap_sample',
+            'psi', 'psi_bin_types', 'psi_n_bins', 'csi', 'csi_bin_types',
+            'csi_n_bins', 'vif', 'woe_iv', 'woe_bin_types', 'woe_n_bins',
+            'correlation', 'corr_max_features'
         }
         valid_keys = required_keys.union(other_valid_keys)
         keys_with_required_vals = {
@@ -237,7 +241,7 @@ class Experiment():
             raise ConfigError(f"need label when supervised = True")
         
         # check eval_metric
-        if "eval_metric" in self.config["hyperparameters"]:            
+        if "eval_metric" in self.config.get("hyperparameters", []):            
             if not isinstance(self.config["hyperparameters"]["eval_metric"], list):
                 if not isinstance(self.config["hyperparameters"]["eval_metric"], str):
                     raise ConfigError(f"eval_metric should be a string or list")
@@ -258,6 +262,16 @@ class Experiment():
             if self.config.get("tuning_algorithm", None) not in {"grid", "random", "tpe", "atpe"}:
                 msg = f'tuning_algorithm value must be in {"grid", "random", "tpe", "atpe"}'
                 raise ConfigError(msg)
+            # check grid_search_n_jobs
+            if self.config["tuning_algorithm"] == "grid":
+                feature = self.config.get("grid_search_n_jobs", 1)
+                try:
+                    feature = int(feature)
+                except Exception as e:
+                    raise ConfigError(f"{feature} exception converting to int: {e}")  
+                if not (feature == -1 or feature >= 1):
+                    raise ConfigError("invalid grid_search_n_jobs value")
+            # check tuning_iterations
             if self.config["tuning_algorithm"] in {"random", "tpe", "atpe"}:
                 if not self.config.get("tuning_iterations", None):
                     msg = "must specify tuning_iterations for the chosen tuning_algorithm"
@@ -558,7 +572,7 @@ class Experiment():
         # set model to use best paramaters 
         self.model.set_params(**best_params)
 
-    def _grid_search(self):
+    def _grid_search_unparallelized(self):
         """Tune hyperparameters with grid search."""
 
         # Grid search all possible combinations
@@ -573,6 +587,58 @@ class Experiment():
         if self.hyperparameter_eval_metric in {'average_precision', 'aucpr', 'auc'}:
             best = np.argmax
         elif self.hyperparameter_eval_metric in {'log_loss', 'brier_loss'}:
+            best = np.argmin
+        best_params = param_dict_list[best(scores)]
+        return best_params
+
+    def _grid_search(self):
+        """Tune hyperparameters with grid search (in parallel)."""
+
+        # make evaluation scorer
+        metric = self.hyperparameter_eval_metric
+        scorer = make_scorer(metric_score, metric=metric)
+        
+        # config inputs into GridSearchCV
+        gs_kwargs = {
+            'estimator': self.model,
+            'param_grid': self.tuning_parameters,
+            'scoring': scorer,
+            'n_jobs': self.grid_search_n_jobs,
+            'verbose': 3
+        }
+        if self.cross_validation:
+            X = self.data['train']['X']
+            y = self.data['train']['y']
+            gs_kwargs['cv'] = 5 # number of cv folds
+        else:
+            X = pd.concat([self.data['train']['X'], self.data['validation']['X']])
+            y = pd.concat([self.data['train']['y'], self.data['validation']['y']])
+            split_index = np.concatenate([-np.ones(len(self.data['train']['y'])), np.zeros(len(self.data['validation']['y']))])
+            ps = PredefinedSplit(split_index)
+            gs_kwargs['cv'] = ps
+        model = GridSearchCV(**gs_kwargs)
+
+        # Grid search all possible combinations
+        model.fit(X, y)
+
+        # get GridSearchCV metrics
+        scores = model.cv_results_['mean_test_score']
+        param_dict_list = model.cv_results_['params']
+        mean_fit_times = model.cv_results_['mean_fit_time']
+
+        # save score output to file
+        with open(self.performance_dir/"parameter_tuning_log.txt", "a") as file:
+            for score, param_dict, fit_time in zip(scores, param_dict_list, mean_fit_times):
+                msg = f"Parameters: {param_dict}\n{metric}: {score}\n"
+                if self.cross_validation:
+                    msg += "mean "
+                msg += f"fit time: {fit_time} seconds\n\n"
+                file.write(msg)
+   
+        # get parameter set with best score
+        if metric in {'average_precision', 'aucpr', 'auc'}:
+            best = np.argmax
+        elif metric in {'log_loss', 'brier_loss'}:
             best = np.argmin
         best_params = param_dict_list[best(scores)]
         return best_params

@@ -227,6 +227,7 @@ cross_validation: False
 
 ### Hyperparameter Tuning Algorithm
 tuning_algorithm: grid # grid, random, tpe, or atpe.
+grid_search_n_jobs: 5
 tuning_iterations: 10 # need to specify for random, tpe, or atpe
 # tuning_algorithm
   # not required, default None, type: string
@@ -239,6 +240,11 @@ tuning_iterations: 10 # need to specify for random, tpe, or atpe
   # notes:
     # required if hyperparameter_tuning is True
     # tpe matches random for the first 20 iterations
+# grid_search_n_jobs
+  # not required, default 1, type: None or int (or str that casts to int)
+  # valid values: -1 or int >= 1
+  # meaning: the number of jobs to run in parallel for grid search
+  # note: -1 means use all processors
 # tuning_iterations
   # not required, default None, type: None or int (or str that casts to int)
   # valid values: int > 0
@@ -248,8 +254,8 @@ tuning_iterations: 10 # need to specify for random, tpe, or atpe
 
 ### Tuning Parameters
 tuning_parameters:
-  min_child_weight: [1]
-  max_depth: [3, 5]
+  min_child_weight: [3]
+  max_depth: [1, 2]
 # tuning_parameters
   # not required, default None, type: None or dict
   # meaning: specifies the distributions over which to search for hyperparameters

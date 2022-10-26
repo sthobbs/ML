@@ -203,7 +203,7 @@ class ModelEvaluation():
                 best_n_estimators = f(self.model.evals_result().get(default_name).get(metric)) + 1
                 df.at[metric, dataset_name] = best_n_estimators
         df.to_csv(f'{self.tables_subdir}/optimal_n_estimators.csv')
-        print(f'Generated optimal n_estimators table\n')
+        print(f'Generated optimal n_estimators table')
 
     def _plot_precision_recall_threshold(self, precision, recall, thresholds, dataset_name):
         """Plot the precision and recall against the threshold."""
