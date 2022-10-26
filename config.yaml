@@ -4,14 +4,14 @@ version: 1.0.1
 description: test experiment
 data_dir: C:/Users/hobbs/Documents/Programming/ML/Datasets/creditcard  # data directory
 data_file_patterns: # files patterns of data sources
-  # train, validation, and test are required, additional datasets are optional 
   train: train_*.csv
   validation: validation_*.csv
   test: test_*.csv
   other: other_*.csv
 # train is always required
-# validation is required when cross_validation is not True
-# all other named datasets are optional
+# if hyperparameter_tuning is True and cross_validation is not True, 
+  # then at least one of validation or test is required
+# any other named datasets are optional
 
 # path of existing model (e.g. if you want to warm start, or just run model evalution)
 input_model_path: # leave empty if you don't want to load from path
@@ -85,7 +85,7 @@ aux_fields: # auxiliary fields to use to create additional metrics
 seed: 32
 verbose: 10 # how frequently to print output (only applies to XGBoost models)
 
-
+### Hyperparameters
 hyperparameters:
   n_estimators: 50
   learning_rate: 0.1
@@ -113,7 +113,7 @@ hyperparameters:
 ### Hyperparameter Tuning
 hyperparameter_tuning: True # True or False
 hyperparameter_eval_metric: log_loss # average_precision, aucpr, auc, log_loss, brier_loss
-cross_validation: True
+cross_validation:
 # hyperparameter_tuning
   # not required, default False, type: boolean
   # valid values: True, False

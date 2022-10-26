@@ -133,11 +133,13 @@ class Experiment():
         self.aux_data = {} # where auxiliary fields will be stored
         self.model = None
         
-        # custom orders for dataset_names
+        # specific order for dataset_names (for appropriate early stopping if enabled)
         all_names = set(self.data_file_patterns)
         main_names = {'train', 'test', 'validation'}
         other_names = sorted(all_names.difference(main_names))
-        self.dataset_names = ['train', 'test'] + other_names + ['validation'] # validation last for early stopping
+        self.dataset_names = ['train'] + other_names
+        self.dataset_names.extend([n for n in ['test', 'validation'] if n in all_names])
+
 
     def validate_config(self):
         """Ensure that the config file is valid."""
@@ -187,13 +189,15 @@ class Experiment():
             msg = f"missing value(s) in config file for: {', '.join(keys_missing_required_vals)}"
             raise ConfigError(msg)
         
-        # check for existence of train, validation, and test paths
-        keys_with_required_vals = {'train', 'validation', 'test'}
+        # check for existence of train
         keys_with_vals = {k for k, v in self.config["data_file_patterns"].items() if v}
-        keys_missing_required_vals = keys_with_required_vals.difference(keys_with_vals)
-        if keys_missing_required_vals:
-            msg = ("missing key(s) or value(s) within data_file_patterns for "
-                   ", ".join(keys_missing_required_vals))
+        if 'train' not in keys_with_vals:
+            raise ConfigError("missing train key or value within data_file_patterns") 
+        # need test or validation if HP-tuning without CV
+        if self.config.get("hyperparameter_tuning", False) \
+        and not self.config.get("cross_validation", False) \
+        and not ('validation' in keys_with_vals or 'test' in keys_with_vals):
+            msg = "either 'validation' or 'test' must have a path in data_file_patterns"
             raise ConfigError(msg)
         
         # check for score_dir value if we want to save model scores
@@ -668,8 +672,9 @@ class Experiment():
             # train model
             self.model.fit(**self.data['train'])
             # evaluate model (based on self.hyperparameter_eval_metric)
-            y_true = self.data['validation']['y']
-            y_score = self.model.predict_proba(self.data['validation']['X'])
+            val_name = 'validation' if 'validation' in self.data else 'test'
+            y_true = self.data[val_name]['y']
+            y_score = self.model.predict_proba(self.data[val_name]['X'])
             score = metric_score(y_true, y_score, metric)
         
         # print and log results
