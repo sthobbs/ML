@@ -99,6 +99,7 @@ class Experiment():
         self.hyperparameter_tuning = self.config.get("hyperparameter_tuning", False)
         self.hyperparameter_eval_metric = self.config.get("hyperparameter_eval_metric", "log_loss")
         self.cross_validation = self.config.get("cross_validation", False)
+        self.cv_folds = self.config.get("cv_folds", 5)
         self.tuning_algorithm = self.config.get("tuning_algorithm", None)
         self.grid_search_n_jobs = self.config.get("grid_search_n_jobs", 1)
         self.tuning_iterations = self.config.get("tuning_iterations", None)
@@ -159,12 +160,12 @@ class Experiment():
         other_valid_keys = {
             'input_model_path', 'score_dir', 'label', 'aux_fields', 'verbose',
             'hyperparameter_tuning',  'hyperparameter_eval_metric',
-            'cross_validation', 'tuning_algorithm', 'grid_search_n_jobs', 
-            'tuning_iterations', 'tuning_parameters', 'permutation_importance',
-            'perm_imp_metrics', 'perm_imp_n_repeats', 'shap', 'shap_sample',
-            'psi', 'psi_bin_types', 'psi_n_bins', 'csi', 'csi_bin_types',
-            'csi_n_bins', 'vif', 'woe_iv', 'woe_bin_types', 'woe_n_bins',
-            'correlation', 'corr_max_features'
+            'cross_validation', 'cv_folds', 'tuning_algorithm',
+            'grid_search_n_jobs',  'tuning_iterations', 'tuning_parameters',
+            'permutation_importance', 'perm_imp_metrics', 'perm_imp_n_repeats',
+            'shap', 'shap_sample', 'psi', 'psi_bin_types', 'psi_n_bins', 'csi',
+            'csi_bin_types', 'csi_n_bins', 'vif', 'woe_iv', 'woe_bin_types',
+            'woe_n_bins', 'correlation', 'corr_max_features'
         }
         valid_keys = required_keys.union(other_valid_keys)
         keys_with_required_vals = {
@@ -358,15 +359,25 @@ class Experiment():
                 msg = f"if {feature} is present, it must be 'fixed', 'quantiles', or empty"
                 raise ConfigError(msg)
 
-        # check psi_n_bins, csi_n_bins, woe_n_bins, corr_max_features (no key, None, or castable to int (>1))
+        # check no key, None, or castable to int (>1))
         for feature in {'psi_n_bins', 'csi_n_bins', 'woe_n_bins', 'corr_max_features'}:
-            n_bins = self.config.get(feature, None)
-            if n_bins is not None:
+            num = self.config.get(feature, None)
+            if num is not None:
                 try:
-                    int(n_bins)
+                    int(num)
                 except Exception as e:
                     raise ConfigError(f"{feature} exception converting to int: {e}")
-                if int(n_bins) <= 1:
+                if int(num) <= 1:
+                    raise ConfigError(f"if {feature} is an int, it should be > 1")
+        # check no key, None, or castable to int (>=1))
+        for feature in {'cv_folds'}:
+            num = self.config.get(feature, None)
+            if num is not None:
+                try:
+                    int(num)
+                except Exception as e:
+                    raise ConfigError(f"{feature} exception converting to int: {e}")
+                if int(num) < 1:
                     raise ConfigError(f"if {feature} is an int, it should be > 1")
 
         # check required boolean keys
@@ -529,7 +540,7 @@ class Experiment():
             # store aux data (in separate object so that **self.data[name] can be used) 
             self.aux_data[name] = df[self.aux_fields]
 
-    def train(self):
+    def train(self, **kwargs):
         """
         tune hyperparameters, then train a final model with the tuned
         hyperparmeters.
@@ -540,7 +551,7 @@ class Experiment():
         
         # train model with optimal paramaters
         print(f"\n-----Training Final Model-----")
-        self.model.fit(**self.data['train'])
+        self.model.fit(**self.data['train'], **kwargs)
 
     def tune_hyperparameters(self):
         """
@@ -609,7 +620,7 @@ class Experiment():
         if self.cross_validation:
             X = self.data['train']['X']
             y = self.data['train']['y']
-            gs_kwargs['cv'] = 5 # number of cv folds
+            gs_kwargs['cv'] = self.cv_folds
         else:
             X = pd.concat([self.data['train']['X'], self.data['validation']['X']])
             y = pd.concat([self.data['train']['y'], self.data['validation']['y']])

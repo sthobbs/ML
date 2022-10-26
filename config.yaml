@@ -217,12 +217,16 @@ hyperparameter_eval_metric: log_loss # average_precision, aucpr, auc, log_loss, 
 
 ### Cross Validation
 cross_validation: False
-# ...
+cv_folds: 5
 # cross_validation
   # not required, default False, type: boolean
   # valid values: True, False
   # meaning: True => run cross validation when tuning hyperparameters
     # if True, only the training data will be used for training
+# cv_folds
+  # not required, default 5, type: None or int (or str that casts to int)
+  # valid values: int >= 1
+  # meaning: the number of folds in (stratified) k-fold cross validation
 
 
 ### Hyperparameter Tuning Algorithm
