@@ -64,7 +64,7 @@ class Experiment():
         self.version = self.config["version"]
         self.data_dir = Path(self.config["data_dir"])
         self.data_file_patterns = self.config["data_file_patterns"]
-        self.input_model_path = self.config["input_model_path"]
+        self.input_model_path = self.config.get("input_model_path", None)
         self.experiment_dir = Path(self.config["experiment_dir"])
         now = datetime.now().strftime("%Y%m%d-%H%M%S") # current datetime
         self.output_dir = self.experiment_dir / f"{self.version}-{now}"
@@ -91,6 +91,7 @@ class Experiment():
         self.seed = int(self.config["seed"])
         random.seed(self.seed)
         np.random.seed(self.seed)
+        self.verbose = int(self.config.get("verbose", 10))
         self.hyperparameters = self.config["hyperparameters"]
         self.hyperparameters["random_state"] = self.seed
         self.hyperparameter_tuning = self.config.get("hyperparameter_tuning", False)
@@ -147,18 +148,18 @@ class Experiment():
         # specify which keys and values are required/valid
         required_keys = {
             'version', 'description', 'data_dir', 'data_file_patterns', 
-            'input_model_path', 'experiment_dir', 'performance_dir', 
+            'experiment_dir', 'performance_dir', 
             'model_dir', 'explain_dir', 'save_scores', 'model_type',
-            'supervised', 'binary_classification', 'features', 'aux_fields',
+            'supervised', 'binary_classification', 'features',
             'seed', 'hyperparameters',
         }
         other_valid_keys = {
-            'score_dir', 'label', 'verbose', 'hyperparameter_tuning', 
-            'hyperparameter_eval_metric', 'cross_validation', 'tuning_algorithm',
-            'tuning_iterations', 'tuning_parameters',
-            'permutation_importance', 'perm_imp_metrics', 'perm_imp_n_repeats',
-            'shap', 'shap_sample', 'psi', 'psi_bin_types', 'psi_n_bins',
-            'csi', 'csi_bin_types', 'csi_n_bins', 'vif', 'woe_iv',
+            'input_model_path', 'score_dir', 'label', 'aux_fields', 'verbose',
+            'hyperparameter_tuning',  'hyperparameter_eval_metric',
+            'cross_validation', 'tuning_algorithm', 'tuning_iterations',
+            'tuning_parameters', 'permutation_importance', 'perm_imp_metrics',
+            'perm_imp_n_repeats', 'shap', 'shap_sample', 'psi', 'psi_bin_types',
+            'psi_n_bins', 'csi', 'csi_bin_types', 'csi_n_bins', 'vif', 'woe_iv',
             'woe_bin_types', 'woe_n_bins', 'correlation', 'corr_max_features'
         }
         valid_keys = required_keys.union(other_valid_keys)
