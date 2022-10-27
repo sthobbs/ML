@@ -100,8 +100,9 @@ class XGBExperiment(Experiment):
         df = pd.concat(imps, axis=1) # dataframe of importances
         df = df.apply(lambda x: x / x.sum(), axis=0) # normalize so each column sums to 1
         df.sort_values('gain', ascending=False, inplace=True)
-        self.explain_dir.mkdir(exist_ok=True)
-        df.to_csv(f'{self.explain_dir}/xgb_feature_importance.csv')
+        importance_dir = self.explain_dir / "feature_importance"
+        importance_dir.mkdir(parents=True, exist_ok=True)
+        df.to_csv(importance_dir/'xgb_feature_importance.csv')
 
 
 
@@ -118,7 +119,6 @@ if __name__ == "__main__":
 
 
 ### Next Steps
-# fix train by just calling super method
 # put feature importance in subfolder (feature_importance/)
 # relax required config variables
 # (M) comments

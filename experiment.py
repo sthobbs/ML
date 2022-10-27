@@ -886,7 +886,8 @@ class Experiment():
         self.logger.info(f"----- Generating Permutation Feature Importances -----")
 
         # make output directory
-        self.explain_dir.mkdir(exist_ok=True)
+        importance_dir = self.explain_dir / "feature_importance"
+        importance_dir.mkdir(parents=True, exist_ok=True)
         
         # generate permutation feature importance for each metric on each dataset
         metrics = self.perm_imp_metrics
@@ -904,7 +905,7 @@ class Experiment():
             df = pd.concat(imps, axis=1) # dataframe of importance means and stds
             df.index = self.features[:]
             df.sort_values(f"{metrics[0]}_mean", ascending=False, inplace=True)
-            df.to_csv(f'{self.explain_dir}/permutation_importance_{name}.csv')
+            df.to_csv(f'{importance_dir}/permutation_importance_{name}.csv')
 
     def plot_shap(self):
         """Generate model explanitory charts involving shap values."""
