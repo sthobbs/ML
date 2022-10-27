@@ -9,6 +9,7 @@ from pathlib import Path
 import seaborn as sns
 from tqdm import tqdm
 from scipy.stats import ks_2samp
+import warnings
 
 
 def metric_score(y_true, y_score, metric):
@@ -303,8 +304,7 @@ class ModelEvaluation():
         assert 0 < increment < 1, f'increment={increment}, it should be >0 and <=1'
         
         # initialize performance tracking table
-        columns = ['threshold', 'tp', 'fp', 'fn', 'tn'] + self.aux_fields
-        performance = pd.DataFrame(columns=columns)
+        performance = []
 
         # make sorted dataframe of data, with extra fields
         df = pd.DataFrame({'y_true':y_true, 'y_score':y_score})
@@ -328,7 +328,7 @@ class ModelEvaluation():
                 'fn': fn,
                 'tn': tn,
             } | aux_tp
-            performance = performance.append(row, ignore_index=True)
+            performance.append(row)
             # find index of next threshold and update counts/sums
             idx_upper = df['y_score'].searchsorted(threshold + increment) # index of first value >= threshold + increment
             df_subset = df.loc[idx_lower: idx_upper-1, ['y_true'] + self.aux_fields] # records in idx range
@@ -342,7 +342,12 @@ class ModelEvaluation():
             for k, v in aux_tp.items(): # update tp sum for aux fields
                 aux_tp[k] -= df_pos[k].sum()
             idx_lower = idx_upper
-        
+
+        # convert to dataframe
+        performance = pd.DataFrame.from_records(performance)
+        columns = ['threshold', 'tp', 'fp', 'fn', 'tn'] + self.aux_fields
+        performance = performance.reindex(columns=columns) # reorder columns
+
         # combine fields
         performance['precision'] = performance['tp'] / (performance['tp'] + performance['fp'])
         performance['recall'] = performance['tp'] / (performance['tp'] + performance['fn'])
@@ -381,16 +386,21 @@ class ModelEvaluation():
     def ks_statistic(self):
         """Generate Kolmogorov-Smirnov (KS) Statistic."""
 
-        # intialize output dataframe
-        df = pd.DataFrame(columns=['dataset', 'ks', 'p-value'])
+        # intialize output table
+        performance = []
 
         # generate KS Statistic for each dataset
         for X, y_true, dataset_name in self.datasets:
             y_score = self.model.predict_proba(X)[:,1]
             ks_stat, p_value = ks_2samp(y_score[y_true==0], y_score[y_true==1])
             row = {'dataset': dataset_name, 'ks': ks_stat, 'p-value': p_value}
-            df = df.append(row, ignore_index=True)
+            performance.append(row)
+
+        # convert to dataframe
+        performance = pd.DataFrame.from_records(performance)
+        columns = ['threshold', 'tp', 'fp', 'fn', 'tn'] + self.aux_fields
+        performance = performance.reindex(columns=['dataset', 'ks', 'p-value']) # reorder columns
 
         # save output to csv
-        df.to_csv(self.tables_subdir/f"ks_statistic", index=False)
+        performance.to_csv(self.tables_subdir/f"ks_statistic", index=False)
         print(f'Generated Kolmogorov-Smirnov (KS) Statistic table')

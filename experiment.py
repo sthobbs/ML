@@ -1,6 +1,4 @@
 
-import pandas as pd
-import dask.dataframe as dd
 import xgboost as xgb
 from sklearn import ensemble, tree, neural_network, neighbors, linear_model, cluster, base
 from sklearn.utils import shuffle
@@ -18,8 +16,12 @@ import seaborn as sns
 from tqdm import tqdm
 from hyperopt import fmin, rand, tpe, atpe, hp, STATUS_OK, Trials, pyll
 from statsmodels.stats.outliers_influence import variance_inflation_factor
+import pandas as pd
+import dask.dataframe as dd
+from dask.diagnostics import ProgressBar
+ProgressBar().register()
 import warnings
-warnings.filterwarnings('ignore')
+# warnings.filterwarnings('ignore')
 
 pwd = r"C:\Users\hobbs\Documents\Programming\ML"
 os.chdir(pwd)
@@ -55,8 +57,11 @@ class Experiment():
         print(f"\n-----Initializing {self.__class__.__name__}-----")
 
         # Load and validate config file
-        with open(config_path, "r") as f:
-            self.config = yaml.safe_load(f)
+        try:
+            with open(config_path, "r") as f:
+                self.config = yaml.safe_load(f)
+        except Exception as e:
+            raise ConfigError(f"error loading config file: {e}")
         self.validate_config()
         
         # Set variables
@@ -513,9 +518,13 @@ class Experiment():
         """
 
         print(f"Loading model object from {path}")
-        with open(path, 'rb') as f:
-            self.model = pickle.load(f, encoding='latin1')
-            print(f"model loaded from path: {path}")
+        try:
+            with open(path, 'rb') as f:
+                self.model = pickle.load(f, encoding='latin1')
+                print(f"model loaded from path: {path}")
+        except Exception as e:
+            print(f"error loading model from path: {path}")
+            raise
 
     def load_data(self):
         """
