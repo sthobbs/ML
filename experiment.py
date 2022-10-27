@@ -20,6 +20,7 @@ import pandas as pd
 import dask.dataframe as dd
 from dask.diagnostics import ProgressBar
 ProgressBar().register()
+import logging
 import warnings
 # warnings.filterwarnings('ignore')
 
@@ -54,7 +55,7 @@ class Experiment():
                 path to yaml config file
         """
 
-        print(f"\n-----Initializing {self.__class__.__name__}-----")
+        print(f"----- Initializing {self.__class__.__name__} -----")
 
         # Load and validate config file
         try:
@@ -86,6 +87,7 @@ class Experiment():
         self.save_scores = self.config["save_scores"]
         if self.save_scores:
             self.score_dir = self.output_dir / self.config["score_dir"]
+        self.log_dir = self.output_dir / self.config.get("log_dir", "logs")
         
         #------ Job Config -------
         self.model_type = self.config["model_type"]
@@ -159,6 +161,29 @@ class Experiment():
         self.dataset_names = ['train'] + other_names
         self.dataset_names.extend([n for n in ['test', 'validation'] if n in all_names])
 
+        # ------ Logging -------
+        # make output dirs
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+        self.log_dir.mkdir(exist_ok=True)
+
+        # create logger
+        self.logger = logging.getLogger(__name__).getChild(self.__class__.__name__).getChild(str(id(self)))
+        self.logger.setLevel(logging.DEBUG)
+
+        # create formatter
+        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+
+        # create and add handlers for console output
+        ch = logging.StreamHandler()
+        ch.setLevel(logging.DEBUG)
+        ch.setFormatter(formatter)
+        self.logger.addHandler(ch)
+
+        # create and add handlers for file output
+        fh = logging.FileHandler(self.log_dir/"experiment.log")
+        fh.setLevel(logging.DEBUG)
+        fh.setFormatter(formatter)
+        self.logger.addHandler(fh)
 
     def validate_config(self):
         """Ensure that the config file is valid."""
@@ -172,8 +197,8 @@ class Experiment():
             'seed', 'hyperparameters',
         }
         other_valid_keys = {
-            'input_model_path', 'score_dir', 'label', 'aux_fields', 'verbose',
-            'hyperparameter_tuning',  'hyperparameter_eval_metric',
+            'input_model_path', 'score_dir', 'log_dir', 'label', 'aux_fields',
+            'verbose', 'hyperparameter_tuning',  'hyperparameter_eval_metric',
             'cross_validation', 'cv_folds', 'tuning_algorithm',
             'grid_search_n_jobs',  'tuning_iterations', 'tuning_parameters',
             'permutation_importance', 'perm_imp_metrics', 'perm_imp_n_repeats',
@@ -436,13 +461,9 @@ class Experiment():
         experiment output, and saving the config file.
         """
 
-        # make output dirs
-        self.output_dir.mkdir(parents=True, exist_ok=True)
-        self.performance_dir.mkdir(exist_ok=True)
-        
         # copy config to output_dir
         copyfile(self.config_path, self.output_dir/"config.yaml")
-        print(f"config copied to {self.output_dir}/config.yaml")
+        self.logger.info(f"config copied to {self.output_dir}/config.yaml")
         
         # load model
         if not self.model:
@@ -471,12 +492,14 @@ class Experiment():
             if self.model_type != 'Other':
                 msg = (f"model_type should be 'Other', not {self.model_type} if a"
                         " model_obj is being passed into .load_model()")
+                self.logger.error(msg)
                 raise ConfigError(msg)
             if not isinstance(model_obj, base.BaseEstimator):
                 msg = f"model_obj should be a scikit-learn model object, not {type(model_obj)}"
+                self.logger.error(msg)
                 raise TypeError(msg)
             self.model = model_obj
-            print("model loaded from passed in model object")
+            self.logger.info("model loaded from passed in model object")
         
         # load model from path (if passed in)
         elif path is not None:
@@ -488,7 +511,7 @@ class Experiment():
         
         # instantiate new model
         else:
-            print("Initializing model")
+            self.logger.info("Initializing model")
             self.model = {
                 'XGBClassifier': xgb.XGBClassifier(),
                 'XGBRegressor': xgb.XGBRegressor(),
@@ -517,13 +540,13 @@ class Experiment():
                 file path to scikit-learn model object with a .predict_proba() method
         """
 
-        print(f"Loading model object from {path}")
+        self.logger.info(f"Loading model object from {path}")
         try:
             with open(path, 'rb') as f:
                 self.model = pickle.load(f, encoding='latin1')
-                print(f"model loaded from path: {path}")
+                self.logger.info(f"model loaded from path: {path}")
         except Exception as e:
-            print(f"error loading model from path: {path}")
+            self.logger.error(f"error loading model from path: {path}")
             raise
 
     def load_data(self):
@@ -532,7 +555,7 @@ class Experiment():
         and possibly other datasets as specified in the config.
         """
 
-        print(f"\n-----Loading Data-----")
+        self.logger.info(f"----- Loading Data -----")
         
         # get fields to load (features + label + auxiliary fields)
         fields = self.features[:]
@@ -545,7 +568,7 @@ class Experiment():
         # load data
         for name, file_pattern in self.data_file_patterns.items():
             data_path = self.data_dir / file_pattern
-            print(f"loading {name} data from {data_path}")
+            self.logger.info(f"loading {name} data from {data_path}")
             df = dd.read_csv(data_path, usecols=fields)
             df = df.compute()
             df = shuffle(df, random_state=self.seed)
@@ -568,7 +591,7 @@ class Experiment():
         self.tune_hyperparameters()
         
         # train model with optimal paramaters
-        print(f"\n-----Training Final Model-----")
+        self.logger.info(f"----- Training Final Model -----")
         self.model.fit(**self.data['train'], **kwargs)
 
     def tune_hyperparameters(self):
@@ -584,7 +607,7 @@ class Experiment():
         if not (self.supervised and self.hyperparameter_tuning):
             return  
 
-        print(f"\n-----Tuning Hyperparameters (via {self.tuning_algorithm} search)-----")
+        self.logger.info(f"----- Tuning Hyperparameters (via {self.tuning_algorithm} search) -----")
         
         # run grid search (if configured)
         if self.tuning_algorithm == 'grid':
@@ -595,7 +618,7 @@ class Experiment():
             best_params = self._hyperopt_search()
         
         # write best params to file
-        with open(self.performance_dir/"parameter_tuning_log.txt", "a") as file:
+        with open(self.log_dir/"parameter_tuning_log.txt", "a") as file:
             file.write(f"Best parameters: {best_params}\n\n")
         
         # set model to use best paramaters 
@@ -608,7 +631,7 @@ class Experiment():
         param_dict_list = ParameterGrid(self.tuning_parameters)
         scores = []
         for i, param_dict in enumerate(param_dict_list):
-            print(f"{i+1} out of {len(param_dict_list)}")
+            self.logger.info(f"{i+1} out of {len(param_dict_list)}")
             score = self._train_eval_iteration(param_dict)
             scores.append(score)
         
@@ -656,7 +679,7 @@ class Experiment():
         mean_fit_times = model.cv_results_['mean_fit_time']
 
         # save score output to file
-        with open(self.performance_dir/"parameter_tuning_log.txt", "a") as file:
+        with open(self.log_dir/"parameter_tuning_log.txt", "a") as file:
             for score, param_dict, fit_time in zip(scores, param_dict_list, mean_fit_times):
                 msg = f"Parameters: {param_dict}\n{metric}: {score}\n"
                 if self.cross_validation:
@@ -733,7 +756,7 @@ class Experiment():
                 best_params[hyperparameter] = int(value)
 
         # save trial output
-        with open(self.performance_dir/"parameter_tuning_trials.txt", "a") as file:
+        with open(self.log_dir/"parameter_tuning_trials.txt", "a") as file:
             for trial in trials.trials:
                 file.write(str(trial))
                 file.write("\n\n")
@@ -752,7 +775,7 @@ class Experiment():
         """
 
         start_time = time.time()
-        print(param_dict)
+        self.logger.info(param_dict)
         
         # train model
         self.model.set_params(**param_dict)
@@ -774,11 +797,11 @@ class Experiment():
             score = metric_score(y_true, y_score, metric)
         
         # print and log results
-        print(f"{metric}: {score}")
+        self.logger.info(f"{metric}: {score}")
         seconds_to_train = time.time() - start_time
-        print(f"{seconds_to_train} seconds to train")
+        self.logger.info(f"{seconds_to_train} seconds to train")
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        with open(self.performance_dir/"parameter_tuning_log.txt", "a") as file:
+        with open(self.log_dir/"parameter_tuning_log.txt", "a") as file:
             msg = (f"{now}\nParameters: {param_dict}\n{metric}: {score}\n{seconds_to_train}"
                     " seconds to train\n\n")
             file.write(msg)
@@ -798,8 +821,13 @@ class Experiment():
         if not self.supervised:
             return
 
+        # make output directory
+        self.performance_dir.mkdir(exist_ok=True)
+
+        # Instantiate ModelEvaluation class
         datasets = [(self.data[n]['X'], self.data[n]['y'], n) for n in self.dataset_names] 
-        self.model_eval = ModelEvaluation(self.model, datasets, self.performance_dir, self.aux_fields)
+        self.model_eval = ModelEvaluation(self.model, datasets, self.performance_dir, \
+            self.aux_fields, self.logger)
 
         # generate binary classification metrics
         if self.binary_classification:
@@ -855,7 +883,7 @@ class Experiment():
                 see https://scikit-learn.org/stable/modules/model_evaluation.html for complete list.
         """
 
-        print(f"\n-----Generating Permutation Feature Importances-----")
+        self.logger.info(f"----- Generating Permutation Feature Importances -----")
 
         # make output directory
         self.explain_dir.mkdir(exist_ok=True)
@@ -863,7 +891,7 @@ class Experiment():
         # generate permutation feature importance for each metric on each dataset
         metrics = self.perm_imp_metrics
         for name in self.dataset_names:
-            print(f"running permutation importance on {name} data")
+            self.logger.info(f"running permutation importance on {name} data")
             r = permutation_importance(self.model, **self.data[name],
                 n_repeats=n_repeats, random_state=self.seed,
                 scoring=metrics)
@@ -884,7 +912,7 @@ class Experiment():
         plt.close('all')
         
         # Generate Shap Charts
-        print(f"\n-----Generating Shap Charts-----")
+        self.logger.info(f"----- Generating Shap Charts -----")
         savefig_kwargs = {'bbox_inches': 'tight', 'pad_inches': 0.2}
         predict = lambda x: self.model.predict_proba(x)[:,1]
         for dataset_name in self.dataset_names:
@@ -897,7 +925,7 @@ class Experiment():
                 warnings.warn(msg)
 
             # Generate partial dependence plots 
-            print(f'Plotting {dataset_name} partial dependence plots')
+            self.logger.info(f'Plotting {dataset_name} partial dependence plots')
             plot_dir = self.explain_dir/"shap"/dataset_name/"partial_dependence_plots"
             plot_dir.mkdir(parents=True, exist_ok=True)
             for feature in tqdm(self.features):        
@@ -908,7 +936,7 @@ class Experiment():
                 plt.close()
 
             # Generate scatter plots (coloured by feature with strongest interaction)
-            print(f'Plotting {dataset_name} scatter plots')
+            self.logger.info(f'Plotting {dataset_name} scatter plots')
             explainer = shap.Explainer(self.model, dataset)
             shap_values = explainer(dataset)
             plot_dir = self.explain_dir/"shap"/dataset_name/"scatter_plots"
@@ -920,14 +948,14 @@ class Experiment():
                 plt.close()
 
             # Generate beeswarm plot
-            print(f'Plotting {dataset_name} beeswarm plot')
+            self.logger.info(f'Plotting {dataset_name} beeswarm plot')
             shap.plots.beeswarm(shap_values, alpha=0.1, max_display=1000, show=False)
             path = self.explain_dir/"shap"/dataset_name/"beeswarm_plot.png"
             plt.savefig(path, **savefig_kwargs)
             plt.close()
 
             # Generate bar plots
-            print(f'Plotting {dataset_name} bar plots')
+            self.logger.info(f'Plotting {dataset_name} bar plots')
             shap.plots.bar(shap_values, max_display=1000, show=False)
             path = self.explain_dir/"shap"/dataset_name/"abs_mean_bar_plot.png"
             plt.savefig(path, **savefig_kwargs)
@@ -956,7 +984,7 @@ class Experiment():
                 the number of bins used to compute psi (default is 10)
         """
 
-        print(f"\n-----Generating PSI-----")
+        self.logger.info(f"----- Generating PSI -----")
 
         # check for valid input
         assert bin_types in {'fixed', 'quantiles'}, "bin_types must be in {'fixed', 'quantiles'}"
@@ -1050,7 +1078,7 @@ class Experiment():
                 the number of bins used to compute csi (default is 10)
         """
         
-        print(f"\n-----Generating CSI-----")
+        self.logger.info(f"----- Generating CSI -----")
 
         # check for valid input
         assert bin_types in {'fixed', 'quantiles'}, "bin_types must be in {'fixed', 'quantiles'}"
@@ -1107,7 +1135,7 @@ class Experiment():
         VIF > 10 => high correlation between an independent variable and the others
         """
 
-        print(f"\n-----Generating VIF-----")
+        self.logger.info(f"----- Generating VIF -----")
         
         # make directory for VIF tables
         vif_dir = self.explain_dir / "vif"
@@ -1143,11 +1171,11 @@ class Experiment():
             warnings.warn(msg)
             return
 
-        print(f"\n-----Generating WOE and IV-----")
+        self.logger.info(f"----- Generating WOE and IV -----")
 
         for dataset_name, dataset in self.data.items():
 
-            print(f"generating woe and iv for {dataset_name} dataset")
+            self.logger.info(f"generating woe and iv for {dataset_name} dataset")
 
             # make output directory
             woe_dir = self.explain_dir / 'woe_iv'
@@ -1233,14 +1261,14 @@ class Experiment():
             warnings.warn(msg)
             return
         
-        print(f"\n-----Generating Correlation Charts-----")
+        self.logger.info(f"----- Generating Correlation Charts -----")
 
         # make output directory
         corr_dir = self.explain_dir / 'correlation'
         corr_dir.mkdir(parents=True, exist_ok=True)
 
         for dataset_name, dataset in self.data.items():
-            print(f"generating correlations for {dataset_name} dataset")
+            self.logger.info(f"generating correlations for {dataset_name} dataset")
             corr = dataset['X'].corr()
             corr_long = pd.melt(corr.reset_index(), id_vars='index') # unpivot to long format
             # write to csv
@@ -1376,7 +1404,7 @@ class Experiment():
     def gen_scores(self):
         """Save model scores for each row"""
 
-        print(f"\n-----Generating Scores-----")
+        self.logger.info(f"----- Generating Scores -----")
         self.score_dir.mkdir(exist_ok=True)
         for dataset_name, dataset in tqdm(self.data.items()):
             scores = self.model.predict_proba(dataset['X'])[:,1]
@@ -1384,6 +1412,6 @@ class Experiment():
             df = pd.concat([dataset['y'], scores, self.aux_data[dataset_name]], axis=1)
             path = f"{self.score_dir}/{dataset_name}_scores"
             df.to_csv(path, index=False)
-            print(f"Saved {dataset_name} scores to {path}")
+            self.logger.info(f"Saved {dataset_name} scores to {path}")
 
       

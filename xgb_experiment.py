@@ -6,8 +6,9 @@ import os
 pwd = r"C:\Users\hobbs\Documents\Programming\ML"
 os.chdir(pwd)
 from experiment import Experiment, ConfigError
-# import yaml
+import logging
 # import warnings
+# import yaml
 # warnings.filterwarnings('ignore')
 
 
@@ -26,7 +27,6 @@ class XGBExperiment(Experiment):
         """
 
         super().__init__(config_path)
-        self.verbose = self.config.get("verbose", True)
 
     def validate_config(self):
         """Ensure that the config file is valid."""
@@ -66,7 +66,7 @@ class XGBExperiment(Experiment):
         self.tune_hyperparameters()
         
         # train model with optimal paramaters
-        print(f"\n-----Training Final Model-----")
+        self.logger.info(f"----- Training Final Model -----")
         eval_set = [(self.data[n]['X'], self.data[n]['y']) for n in self.dataset_names] 
         self.model.fit(**self.data['train'], verbose=self.verbose, eval_set=eval_set)
 
@@ -97,7 +97,7 @@ class XGBExperiment(Experiment):
 
         
         # Get XGBoost feature importance
-        print(f"\n-----Generating XGBoost Feature Importances-----")
+        self.logger.info(f"----- Generating XGBoost Feature Importances -----")
         imp_types = ['gain', 'total_gain', 'weight', 'cover', 'total_cover'] # importance types
         bstr = self.model.get_booster()
         imps = [pd.Series(bstr.get_score(importance_type=t), name=t) for t in imp_types]
@@ -122,26 +122,40 @@ if __name__ == "__main__":
 
 
 ### Next Steps
+# relax required config variables
+# (M) comments
+    # Returns --------, Examples --------- >>> (?)
 # (M) refactor explain code into seperate class
 # read hyperopt papers
 # read shap paper
 # add README.md with examples
 # change prints to logs and save logs to file?
-# cross validation
-    # make it so I don't require (validation or test (just one of them?))
-    # cross_validate: True in config
-        # then just use Train and Test 
-    # need other params
-        # type of CV (regular, stratified, etc.)
-        # number of folds
-# consider other features
-    # dask progress bar?
+# __repr__() and other dunder methods
+
+# Calibrate score (for binary classification)
+    # plots
+    # calibration model object
+    # isotonic vs other types (as input parameter)
+    # (M) search for optimal number of splits
+    # calibrate based on validation? (maybe use test if there is no validation)
+# GCP integration
+    # move to and from gcs
+    # read and write
+    # gcp logging
+    # BQ integration
+# GCP storage class
+    # move to and from GCS
+    # ...
+# GCP BQ class
+    # query parallel
+    # ...
+# GCP logging class
+    # ...
 # run linter over code
-# clean up, document, and reorganize config (logical sections with names/headers?)
 # unit tests (pytest)
-# Calibrate score
 # use isinstance() in more places?
 # Curriculum learning sequences
+# (M) Some sort of performance overlap analysis of two models
 
 
 
@@ -161,12 +175,19 @@ if __name__ == "__main__":
 # EDA class
     # pandas profiler
     # null %, constant fields
+    # feature values over time (need date or timestamp field)
+        # might want a new dataset before implementing this
+# Transform class
+    # encode variables (ordinal, one-hot, binary)
+    # normalize (should normalize test/validation based on train parameters) 
+    # synthetic data (SMOTE, other algorithms)
+    # train/val/test split
 # Code to prep data
     # e.g. train/val/test split
     # get list of features
     # imputation
     # downsample
-    
+# (M) Mock data generation
 
 # probably not going to do:
     # combine metrics tables into one

@@ -9,6 +9,7 @@ from pathlib import Path
 import seaborn as sns
 from tqdm import tqdm
 from scipy.stats import ks_2samp
+import logging
 import warnings
 
 
@@ -49,7 +50,7 @@ class ModelEvaluation():
        github.com/sthobbs
     """
 
-    def __init__(self, model=None, datasets=None, output_dir=None, aux_fields=None):
+    def __init__(self, model=None, datasets=None, output_dir=None, aux_fields=None, logger=None):
         """
         Parameters
         ----------
@@ -62,6 +63,8 @@ class ModelEvaluation():
                 string path to folder where output will be written.
             aux_fields : list, optional
                 auxiliary fields to use to create additional metrics.
+            logger : logging.Logger, optional
+                logger.
         """
 
         self.model = model      
@@ -83,6 +86,19 @@ class ModelEvaluation():
         # Set plot context
         self.plot_context = 'seaborn-darkgrid'
 
+        # Set up logger
+        self.logger = logger
+        if logger is None:
+            # create logger
+            self.logger = logging.getLogger(__name__).getChild(self.__class__.__name__).getChild(str(id(self)))
+            self.logger.setLevel(logging.INFO)
+            # create formatter
+            formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+            # create and add handlers for console output
+            ch = logging.StreamHandler()
+            ch.setLevel(logging.INFO)
+            ch.setFormatter(formatter)
+            self.logger.addHandler(ch)
 
     def binary_evaluate(self, increment=0.01):
         """
@@ -102,7 +118,7 @@ class ModelEvaluation():
         plt.close('all')
         
         for X, y_true, dataset_name in self.datasets:
-            print(f"\n-----Generating {dataset_name} Data Metrics-----")
+            self.logger.info(f"----- Generating {dataset_name} Data Metrics -----")
             y_score = self.model.predict_proba(X)[:,1]
             
             # Generate Precision/Recall vs Threshold
@@ -153,7 +169,7 @@ class ModelEvaluation():
         assert self.datasets is not None, "self.datasets must not be None to run this method"
         plt.close('all')
 
-        print(f"\n-----Generating XGBoost Metrics-----")
+        self.logger.info(f"----- Generating XGBoost Metrics -----")
 
         # Plot training metrics vs n_estimators
         default_names = list(self.model.evals_result().keys()) # default names for evaluation sets (e.g. ['validation_0', 'validation_1'])
@@ -175,7 +191,7 @@ class ModelEvaluation():
                 plt.savefig(f'{self.plots_subdir}/n_estimators_vs_{metric}.png',
                     bbox_inches='tight', pad_inches=0.3)
                 plt.clf()
-                print(f'Plotted n_estimators vs {metric}')
+                self.logger.info(f'Plotted n_estimators vs {metric}')
         plt.close()
 
         # Generate n_estimates vs training metrics tables
@@ -183,7 +199,7 @@ class ModelEvaluation():
             df = pd.DataFrame(self.model.evals_result().get(default_name), index=range(1,n_estimators+1))
             df.index.name = 'n_estimators'
             df.to_csv(f'{self.tables_subdir}/n_estimators_vs_metrics_{dataset_name}.csv')
-            print(f'Generated n_estimators vs metrics table ({dataset_name} data)')
+            self.logger.info(f'Generated n_estimators vs metrics table ({dataset_name} data)')
 
         # Generate optimal n_estimates table
         df = pd.DataFrame(index=metrics, columns=dataset_names)
@@ -198,13 +214,13 @@ class ModelEvaluation():
             elif metric in metrics_to_maximize or metric.startswith('ndcg') or metric.startswith('map'):
                 f = np.argmax
             else:
-                print(f"Warning: unexpected metric '{metric}', skipping it")
+                self.logger.info(f"Warning: unexpected metric '{metric}', skipping it")
                 continue
             for dataset_name, default_name in name_pairs:
                 best_n_estimators = f(self.model.evals_result().get(default_name).get(metric)) + 1
                 df.at[metric, dataset_name] = best_n_estimators
         df.to_csv(f'{self.tables_subdir}/optimal_n_estimators.csv')
-        print(f'Generated optimal n_estimators table')
+        self.logger.info(f'Generated optimal n_estimators table')
 
     def _plot_precision_recall_threshold(self, precision, recall, thresholds, dataset_name):
         """Plot the precision and recall against the threshold."""
@@ -219,7 +235,7 @@ class ModelEvaluation():
             plt.title(f'Precision/Recall vs Threshold ({dataset_name} data)')
             plt.legend(bbox_to_anchor=(0.94, 0.055), loc='lower right', borderaxespad=0, frameon=True)
             plt.savefig(f'{self.plots_subdir}/precision_recall_vs_threshold_{dataset_name}.png')
-            print(f'Plotted Precision/Recall vs Threshold ({dataset_name} data)')
+            self.logger.info(f'Plotted Precision/Recall vs Threshold ({dataset_name} data)')
         plt.close()
 
     def _plot_precision_recall(self, precision, recall, dataset_name, average_precision, precision_recall_auc):
@@ -240,7 +256,7 @@ class ModelEvaluation():
             plt.xlabel('Recall')
             plt.title(f'Precision vs Recall ({dataset_name} data)')
             plt.savefig(f'{self.plots_subdir}/precision_vs_recall_{dataset_name}.png')
-            print(f'Plotted Precision vs Recall ({dataset_name} data)')
+            self.logger.info(f'Plotted Precision vs Recall ({dataset_name} data)')
         plt.close()
 
     def _plot_roc(self, fpr, tpr, dataset_name, roc_auc):
@@ -261,7 +277,7 @@ class ModelEvaluation():
                                ec=(0.8, 0.8, 0.8, 1),
                                fc=(0.9176470588235294, 0.9176470588235294, 0.9490196078431372, 0.75)))
             plt.savefig(f'{self.plots_subdir}/roc_{dataset_name}.png')
-            print(f'Plotted ROC ({dataset_name} data)')
+            self.logger.info(f'Plotted ROC ({dataset_name} data)')
         plt.close()
 
     def _plot_det(self, fpr, fnr, dataset_name):
@@ -272,7 +288,7 @@ class ModelEvaluation():
             DetCurveDisplay(fpr=fpr, fnr=fnr).plot()
             plt.title(f'Detection Error Tradeoff ({dataset_name} data)')
             plt.savefig(f'{self.plots_subdir}/det_{dataset_name}.png')
-            print(f'Plotted Detection Error Tradeoff ({dataset_name} data)')
+            self.logger.info(f'Plotted Detection Error Tradeoff ({dataset_name} data)')
         plt.close()
 
     def _plot_score_hist(self, y_true, y_score, dataset_name):
@@ -288,7 +304,7 @@ class ModelEvaluation():
             plt.title(f"Score Histogram ({dataset_name} data)")
             plt.legend(bbox_to_anchor=(0.99, 0.99), loc='upper right', borderaxespad=0, frameon=True)
             plt.savefig(f'{self.plots_subdir}/score_histogram_{dataset_name}.png')
-            print(f'Plotted Score Histogram ({dataset_name} data)')
+            self.logger.info(f'Plotted Score Histogram ({dataset_name} data)')
         plt.close()
 
     def _threshold_table(self, y_true, y_score, dataset_name, increment=0.01, aux_data=None):
@@ -365,7 +381,7 @@ class ModelEvaluation():
         
         # save file
         performance.to_csv(f'{self.tables_subdir}/threshold_vs_metrics_{dataset_name}.csv', index=False)
-        print(f'Generated threshold performance table ({dataset_name} data)')
+        self.logger.info(f'Generated threshold performance table ({dataset_name} data)')
 
     def _metrics_table(self, y_true, y_score, dataset_name, roc_auc, precision_recall_auc, average_precision):
         """Generate table of metrics for binary classification model evaluation."""
@@ -381,7 +397,7 @@ class ModelEvaluation():
         ]
         df = pd.DataFrame(metrics, columns=['Metric', 'Value'])
         df.to_csv(f'{self.tables_subdir}/metrics_{dataset_name}.csv', index=False)
-        print(f'Generated metrics table ({dataset_name} data)')
+        self.logger.info(f'Generated metrics table ({dataset_name} data)')
 
     def ks_statistic(self):
         """Generate Kolmogorov-Smirnov (KS) Statistic."""
@@ -403,4 +419,4 @@ class ModelEvaluation():
 
         # save output to csv
         performance.to_csv(self.tables_subdir/f"ks_statistic", index=False)
-        print(f'Generated Kolmogorov-Smirnov (KS) Statistic table')
+        self.logger.info(f'Generated Kolmogorov-Smirnov (KS) Statistic table')

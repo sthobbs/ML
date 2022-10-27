@@ -69,6 +69,7 @@ performance_dir: performance # for model performance charts
 model_dir: model # for model objects
 explain_dir: explain # for model explanatory objects
 score_dir: scores # for model scores (only required if save_scores == True)
+log_dir: logs # for logging (default 'logs')
 
 
 ### Other
