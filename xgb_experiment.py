@@ -56,19 +56,15 @@ class XGBExperiment(Experiment):
         super().load_model(model_obj, path)
         assert isinstance(self.model, xgb.XGBModel), "self.model must be an XGBoost model"
 
-    def train(self):
+    def train(self, **kwargs):
         """
         tune hyperparameters, then train a final XGBoost model with
         the tuned hyperparmeters.
         """
 
-        # initialize and tune hyperparamters
-        self.tune_hyperparameters()
-        
-        # train model with optimal paramaters
-        self.logger.info(f"----- Training Final Model -----")
-        eval_set = [(self.data[n]['X'], self.data[n]['y']) for n in self.dataset_names] 
-        self.model.fit(**self.data['train'], verbose=self.verbose, eval_set=eval_set)
+        kwargs['verbose'] = self.verbose
+        kwargs['eval_set'] = [(self.data[n]['X'], self.data[n]['y']) for n in self.dataset_names]
+        super().train(**kwargs)
 
     def save_model(self):
         """Save the XGBoost model object as both .pkl and .bin files."""
@@ -122,6 +118,8 @@ if __name__ == "__main__":
 
 
 ### Next Steps
+# fix train by just calling super method
+# put feature importance in subfolder (feature_importance/)
 # relax required config variables
 # (M) comments
     # Returns --------, Examples --------- >>> (?)
@@ -138,6 +136,7 @@ if __name__ == "__main__":
     # isotonic vs other types (as input parameter)
     # (M) search for optimal number of splits
     # calibrate based on validation? (maybe use test if there is no validation)
+    # I think I'll make another folder for it
 # GCP integration
     # move to and from gcs
     # read and write
@@ -160,6 +159,7 @@ if __name__ == "__main__":
 
 
 # more explainability artifacts? (do a quick google search)
+    # LIME
 # have to test
     # load model (in different ways)
     # reproducability

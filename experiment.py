@@ -750,7 +750,7 @@ class Experiment():
             max_evals=self.tuning_iterations, trials=trials, 
             rstate=np.random.default_rng(self.seed))
 
-        # correct for min casting integers to floats by casting them back to ints
+        # correct for fmin casting integers to floats by casting them back to ints
         for hyperparameter, value in best_params.items():
             if int(value) == value:
                 best_params[hyperparameter] = int(value)
@@ -793,7 +793,7 @@ class Experiment():
             # evaluate model (based on self.hyperparameter_eval_metric)
             val_name = 'validation' if 'validation' in self.data else 'test'
             y_true = self.data[val_name]['y']
-            y_score = self.model.predict_proba(self.data[val_name]['X'])
+            y_score = self.model.predict_proba(self.data[val_name]['X'])[:,1]
             score = metric_score(y_true, y_score, metric)
         
         # print and log results
