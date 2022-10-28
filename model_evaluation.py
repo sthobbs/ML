@@ -1,3 +1,4 @@
+
 import pandas as pd
 from sklearn.metrics import average_precision_score, precision_recall_curve, \
     auc, roc_curve, det_curve, DetCurveDisplay, brier_score_loss, log_loss, \
@@ -10,7 +11,6 @@ import seaborn as sns
 from tqdm import tqdm
 from scipy.stats import ks_2samp
 import logging
-import warnings
 
 
 def metric_score(y_true, y_score, metric):
@@ -214,7 +214,7 @@ class ModelEvaluation():
             elif metric in metrics_to_maximize or metric.startswith('ndcg') or metric.startswith('map'):
                 f = np.argmax
             else:
-                self.logger.info(f"Warning: unexpected metric '{metric}', skipping it")
+                self.logger.warning(f"unexpected metric '{metric}', skipping it")
                 continue
             for dataset_name, default_name in name_pairs:
                 best_n_estimators = f(self.model.evals_result().get(default_name).get(metric)) + 1

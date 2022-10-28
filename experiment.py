@@ -21,13 +21,7 @@ import dask.dataframe as dd
 from dask.diagnostics import ProgressBar
 ProgressBar().register()
 import logging
-import warnings
-# warnings.filterwarnings('ignore')
-
-pwd = r"C:\Users\hobbs\Documents\Programming\ML"
-os.chdir(pwd)
 from model_evaluation import ModelEvaluation, metric_score
-
 
 
 class ConfigError(Exception):
@@ -923,7 +917,7 @@ class Experiment():
             if len(dataset) > 500000:
                 msg = (f"Shap will be slow on {len(dataset)} rows, consider using"
                         " shap_sample in the config to sample fewer rows")
-                warnings.warn(msg)
+                self.logger.warning(msg)
 
             # Generate partial dependence plots 
             self.logger.info(f'Plotting {dataset_name} partial dependence plots')
@@ -1169,7 +1163,7 @@ class Experiment():
 
         if not self.binary_classification:
             msg = "self.binary_classification must be True to run .gen_woe_iv()"
-            warnings.warn(msg)
+            self.logger.warning(msg)
             return
 
         self.logger.info(f"----- Generating WOE and IV -----")
@@ -1259,7 +1253,7 @@ class Experiment():
         if len(self.features) > max_features:
             msg = (f"not computing correlation matrix since there are {len(self.features)}"
                    f" features, which more than max_features = {max_features}")
-            warnings.warn(msg)
+            self.logger.warning(msg)
             return
         
         self.logger.info(f"----- Generating Correlation Charts -----")

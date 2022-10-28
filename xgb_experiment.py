@@ -1,5 +1,4 @@
 
-
 import pandas as pd
 import xgboost as xgb
 import os
@@ -7,10 +6,6 @@ pwd = r"C:\Users\hobbs\Documents\Programming\ML"
 os.chdir(pwd)
 from experiment import Experiment, ConfigError
 import logging
-# import warnings
-# import yaml
-# warnings.filterwarnings('ignore')
-
 
 
 class XGBExperiment(Experiment):
@@ -106,20 +101,11 @@ class XGBExperiment(Experiment):
 
 
 
-if __name__ == "__main__":
-    config_path = "C:/Users/hobbs/Documents/Programming/ML/config.yaml"
-    exp = XGBExperiment(config_path)
-    exp.run()
 
-
-# config_path = "C:/Users/hobbs/Documents/Programming/ML/config.yaml"
-# with open(config_path, "r") as f:
-#     config = yaml.safe_load(f)
 
 
 
 ### Next Steps
-# put feature importance in subfolder (feature_importance/)
 # relax required config variables
 # (M) comments
     # Returns --------, Examples --------- >>> (?)
@@ -127,8 +113,6 @@ if __name__ == "__main__":
 # read hyperopt papers
 # read shap paper
 # add README.md with examples
-# change prints to logs and save logs to file?
-# __repr__() and other dunder methods
 
 # Calibrate score (for binary classification)
     # plots
@@ -157,9 +141,6 @@ if __name__ == "__main__":
 # (M) Some sort of performance overlap analysis of two models
 
 
-
-# more explainability artifacts? (do a quick google search)
-    # LIME
 # have to test
     # load model (in different ways)
     # reproducability
@@ -178,7 +159,6 @@ if __name__ == "__main__":
     # feature values over time (need date or timestamp field)
         # might want a new dataset before implementing this
 # Transform class
-    # encode variables (ordinal, one-hot, binary)
     # normalize (should normalize test/validation based on train parameters) 
     # synthetic data (SMOTE, other algorithms)
     # train/val/test split
@@ -186,6 +166,7 @@ if __name__ == "__main__":
     # e.g. train/val/test split
     # get list of features
     # imputation
+    # encode variables (ordinal, one-hot, binary)
     # downsample
 # (M) Mock data generation
 
