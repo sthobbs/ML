@@ -16,7 +16,7 @@ import dask.dataframe as dd
 from dask.diagnostics import ProgressBar
 ProgressBar().register()
 import logging
-from model_evaluation import ModelEvaluation, metric_score
+from model_evaluate import ModelEvaluate, metric_score
 from model_explain import ModelExplain
 
 
@@ -815,9 +815,9 @@ class Experiment():
         # make output directory
         self.performance_dir.mkdir(exist_ok=True)
 
-        # Instantiate ModelEvaluation class
+        # Instantiate ModelEvaluate class
         datasets = [(self.data[n]['X'], self.data[n]['y'], n) for n in self.dataset_names] 
-        self.model_eval = ModelEvaluation(self.model, datasets, self.performance_dir, \
+        self.model_eval = ModelEvaluate(self.model, datasets, self.performance_dir, \
             self.aux_fields, self.logger)
 
         # generate binary classification metrics

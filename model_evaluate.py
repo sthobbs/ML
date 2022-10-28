@@ -41,7 +41,7 @@ def metric_score(y_true, y_score, metric):
         return brier_score_loss(y_true, y_score)
 
 
-class ModelEvaluation():
+class ModelEvaluate():
     """
     Generates plots and charts to evaluate a model.
 
@@ -164,7 +164,7 @@ class ModelEvaluation():
                 e.g. ['Train', 'Test', 'Validation'] (train with validation last, since that's used for early stopping)
         """
 
-        assert isinstance(self.model, xgb.XGBModel) , f'model is type {type(self.model)}, which is not an XGBoost Model'
+        assert isinstance(self.model, xgb.XGBModel), f'model is type {type(self.model)}, which is not an XGBoost Model'
         assert self.output_dir is not None, "self.output_dir must not be None to run this method"
         assert self.datasets is not None, "self.datasets must not be None to run this method"
         plt.close('all')
