@@ -298,7 +298,7 @@ class ModelEvaluation():
         with plt.style.context(self.plot_context):
             bins = np.arange(0, 1.02, 0.02)
             kw_args = {"stat": "probability", "bins": bins, "kde": False, "alpha": 0.4}
-            sns.histplot(y_score[y_true==0], label="Class: 0", **kw_args)
+            sns.histplot(y_score[y_true==0], label="Class: 0", **kw_args, color="dodgerblue")
             sns.histplot(y_score[y_true==1], label="Class: 1", **kw_args, color="orange")
             plt.xlabel('Score')
             plt.title(f"Score Histogram ({dataset_name} data)")
