@@ -3,25 +3,21 @@ import xgboost as xgb
 from sklearn import ensemble, tree, neural_network, neighbors, linear_model, cluster, base
 from sklearn.utils import shuffle
 from sklearn.model_selection import ParameterGrid, cross_val_score, GridSearchCV, PredefinedSplit
-from sklearn.inspection import permutation_importance
 from sklearn.metrics import make_scorer
-import shap
 import numpy as np
 from pathlib import Path
 import yaml, pickle, os, time, random
 from datetime import datetime
 from shutil import copyfile
-import matplotlib.pyplot as plt
-import seaborn as sns
 from tqdm import tqdm
 from hyperopt import fmin, rand, tpe, atpe, hp, STATUS_OK, Trials, pyll
-from statsmodels.stats.outliers_influence import variance_inflation_factor
 import pandas as pd
 import dask.dataframe as dd
 from dask.diagnostics import ProgressBar
 ProgressBar().register()
 import logging
 from model_evaluation import ModelEvaluation, metric_score
+from model_explain import ModelExplain
 
 
 class ConfigError(Exception):
@@ -62,16 +58,16 @@ class Experiment():
         # Set variables
         self.config_path = Path(config_path)
         
-        #------ Meta Config -------
+        # ------ Meta Config -------
         self.version = self.config["version"]
         self.description = self.config["description"]
 
-        #------ Input Config -------
+        # ------ Input Config -------
         self.data_dir = Path(self.config["data_dir"])
         self.data_file_patterns = self.config["data_file_patterns"]
         self.input_model_path = self.config.get("input_model_path", None)
         
-        #------ Output Config -------
+        # ------ Output Config -------
         self.experiment_dir = Path(self.config["experiment_dir"])
         now = datetime.now().strftime("%Y%m%d-%H%M%S") # current datetime
         self.output_dir = self.experiment_dir / f"{self.version}-{now}"
@@ -83,7 +79,7 @@ class Experiment():
             self.score_dir = self.output_dir / self.config["score_dir"]
         self.log_dir = self.output_dir / self.config.get("log_dir", "logs")
         
-        #------ Job Config -------
+        # ------ Job Config -------
         self.model_type = self.config["model_type"]
         self.supervised = self.config["supervised"]
         self.binary_classification = self.config["binary_classification"]
@@ -261,6 +257,7 @@ class Experiment():
         valid_model_types = supervised_models | unsupervised_models | {'Other'}
         
         # check that model_type is valid
+        model_type = self.config["model_type"]
         if self.config["model_type"] not in valid_model_types:
             raise ConfigError(f"invalid model_type: {model_type}")
         
@@ -833,568 +830,44 @@ class Experiment():
         and shap values.
         """
 
+        # Instantiate ModelExplain class
+        datasets = [(self.data[n]['X'], self.data[n]['y'], n) for n in self.dataset_names] 
+        model_explain = ModelExplain(self.model, datasets, self.explain_dir, self.logger)
+
         # Generate Permutation Feature Importance Tables
         if self.permutation_importance:
             n_repeats = self.perm_imp_n_repeats
             metrics = self.perm_imp_metrics
-            self.gen_permutation_importance(n_repeats, metrics)
+            model_explain.gen_permutation_importance(n_repeats, metrics, self.seed)
 
         # Generate Shap Charts
         if self.shap:
-            self.plot_shap()
+            model_explain.plot_shap(self.shap_sample)
 
         # Generate PSI Table
         if self.psi:
-            self.gen_psi(bin_types=self.psi_bin_types, n_bins=self.psi_n_bins)
+            model_explain.gen_psi(self.psi_bin_types, self.psi_n_bins)
 
         # Generate CSI Table
         if self.csi:
-            self.gen_csi(bin_types=self.csi_bin_types, n_bins=self.csi_n_bins)
+            model_explain.gen_csi(self.csi_bin_types, self.csi_n_bins)
 
         # Generate VIF Table
         if self.vif:
-            self.gen_vif()
+            model_explain.gen_vif()
 
         # Generate WOE and IV
         if self.woe_iv and self.binary_classification:
-            self.gen_woe_iv()
+            model_explain.gen_woe_iv(self.woe_bin_types, self.woe_n_bins)
 
         # Generate Correlation Matrix and Heatmap
         if self.correlation:
-            self.gen_corr(max_features=self.corr_max_features)
+            model_explain.gen_corr(self.corr_max_features)
 
-    def gen_permutation_importance(self, n_repeats=10, metrics='neg_log_loss'):
-        """
-        Generate permutation feature importance tables.
-        
-        Parameters
-        ----------
-            n_repeats : int, optional
-                number of times to permute each feature (default is 10)
-            metrics : str or list of str, optional
-                metrics used in permutation feature importance calculations (default is 'neg_log_loss').
-                e.g.: 'roc_auc', 'average_precision', 'neg_log_loss', 'r2', etc.
-                see https://scikit-learn.org/stable/modules/model_evaluation.html for complete list.
-        """
+        if isinstance(self.model, xgb.XGBModel):
+            model_explain.xgb_explain()
 
-        self.logger.info(f"----- Generating Permutation Feature Importances -----")
 
-        # make output directory
-        importance_dir = self.explain_dir / "feature_importance"
-        importance_dir.mkdir(parents=True, exist_ok=True)
-        
-        # generate permutation feature importance for each metric on each dataset
-        metrics = self.perm_imp_metrics
-        for name in self.dataset_names:
-            self.logger.info(f"running permutation importance on {name} data")
-            r = permutation_importance(self.model, **self.data[name],
-                n_repeats=n_repeats, random_state=self.seed,
-                scoring=metrics)
-            imps = []
-            for m in metrics:
-                # get means and standard deviations of feature importance
-                means = pd.Series(r[m]['importances_mean'], name=f"{m}_mean")
-                stds = pd.Series(r[m]['importances_std'], name=f"{m}_std")
-                imps.extend([means, stds])
-            df = pd.concat(imps, axis=1) # dataframe of importance means and stds
-            df.index = self.features[:]
-            df.sort_values(f"{metrics[0]}_mean", ascending=False, inplace=True)
-            df.to_csv(f'{importance_dir}/permutation_importance_{name}.csv')
-
-    def plot_shap(self):
-        """Generate model explanitory charts involving shap values."""
-
-        plt.close('all')
-        
-        # Generate Shap Charts
-        self.logger.info(f"----- Generating Shap Charts -----")
-        savefig_kwargs = {'bbox_inches': 'tight', 'pad_inches': 0.2}
-        predict = lambda x: self.model.predict_proba(x)[:,1]
-        for dataset_name in self.dataset_names:
-            
-            # get sample of dataset (gets all data if self.shap_sample is None)
-            dataset = self.data[dataset_name]['X'].iloc[:self.shap_sample]
-            if len(dataset) > 500000:
-                msg = (f"Shap will be slow on {len(dataset)} rows, consider using"
-                        " shap_sample in the config to sample fewer rows")
-                self.logger.warning(msg)
-
-            # Generate partial dependence plots 
-            self.logger.info(f'Plotting {dataset_name} partial dependence plots')
-            plot_dir = self.explain_dir/"shap"/dataset_name/"partial_dependence_plots"
-            plot_dir.mkdir(parents=True, exist_ok=True)
-            for feature in tqdm(self.features):        
-                fig, ax = shap.partial_dependence_plot(
-                    feature, predict, dataset, model_expected_value=True,
-                    feature_expected_value=True, show=False, ice=False)
-                fig.savefig(f"{plot_dir}/{feature}.png", **savefig_kwargs)
-                plt.close()
-
-            # Generate scatter plots (coloured by feature with strongest interaction)
-            self.logger.info(f'Plotting {dataset_name} scatter plots')
-            explainer = shap.Explainer(self.model, dataset)
-            shap_values = explainer(dataset)
-            plot_dir = self.explain_dir/"shap"/dataset_name/"scatter_plots"
-            plot_dir.mkdir(exist_ok=True)
-            for feature in tqdm(self.features):        
-                shap.plots.scatter(shap_values[:,feature], alpha=0.3, 
-                    color=shap_values, show=False)
-                plt.savefig(f"{plot_dir}/{feature}.png", **savefig_kwargs)
-                plt.close()
-
-            # Generate beeswarm plot
-            self.logger.info(f'Plotting {dataset_name} beeswarm plot')
-            shap.plots.beeswarm(shap_values, alpha=0.1, max_display=1000, show=False)
-            path = self.explain_dir/"shap"/dataset_name/"beeswarm_plot.png"
-            plt.savefig(path, **savefig_kwargs)
-            plt.close()
-
-            # Generate bar plots
-            self.logger.info(f'Plotting {dataset_name} bar plots')
-            shap.plots.bar(shap_values, max_display=1000, show=False)
-            path = self.explain_dir/"shap"/dataset_name/"abs_mean_bar_plot.png"
-            plt.savefig(path, **savefig_kwargs)
-            plt.close()
-            shap.plots.bar(shap_values.abs.max(0), max_display=1000, show=False)
-            path = self.explain_dir/"shap"/dataset_name/"abs_max_bar_plot.png"
-            plt.savefig(path, **savefig_kwargs)
-            plt.close()
-            # TODO?: make alpha and max_display config variables
-
-    def gen_psi(self, bin_types='fixed', n_bins=10):
-        """
-        Generate Population Stability Index (PSI) values between all pairs of datasets.
-
-               PSI < 0.1 => no significant population change
-        0.1 <= PSI < 0.2 => moderate population change
-        0.2 <= PSI       => significant population change
-
-        Note: PSI is symmetric provided the bins are the same, which they are when bin_types='fixed'
-        
-        Parameters
-        ----------
-            bin_types : str, optional
-                the method for choosing bins, either 'fixed' or 'quantiles' (default is 'fixed')
-            n_bins : int, optional
-                the number of bins used to compute psi (default is 10)
-        """
-
-        self.logger.info(f"----- Generating PSI -----")
-
-        # check for valid input
-        assert bin_types in {'fixed', 'quantiles'}, "bin_types must be in {'fixed', 'quantiles'}"
-
-        # intialize output dataframe
-        psi_df = pd.DataFrame(columns=['dataset1', 'dataset2', 'psi'])
-        
-        # get dictionary of scores for all datasets
-        scores_dict = {}
-        for dataset_name, dataset in self.data.items():
-            scores = self.model.predict_proba(dataset['X'])[:,1]
-            scores.sort()
-            scores_dict[dataset_name] = scores
-        
-        # compute psi for each pair of datasets
-        for i, dataset_name1 in enumerate(self.dataset_names):
-            for j in range(i+1, len(self.dataset_names)):
-                dataset_name2 = self.dataset_names[j]
-                scores1 = scores_dict[dataset_name1]
-                scores2 = scores_dict[dataset_name2]
-                psi_val = self._psi_compare(scores1, scores2, bin_types=bin_types, n_bins=n_bins)
-                row = {
-                    'dataset1': dataset_name1,
-                    'dataset2': dataset_name2,
-                    'psi': psi_val
-                }
-                psi_df = psi_df.append(row, ignore_index=True)
-        
-        # save output to csv
-        self.explain_dir.mkdir(exist_ok=True)
-        psi_df.to_csv(self.explain_dir/'psi.csv', index=False)
-
-    def _psi_compare(self, scores1, scores2, bin_types='fixed', n_bins=10):
-        """
-        Compute Population Stability Index (PSI) between two datasets.
-
-        Parameters
-        ----------
-            scores1 : numpy.ndarray or pandas.core.series.Series
-                scores for one of the datasets
-            scores2 : numpy.ndarray or pandas.core.series.Series
-                scores for the other dataset
-            bin_types : str, optional
-                the method for choosing bins, either 'fixed' or 'quantiles' (default is 'fixed')
-            n_bins : int, optional
-                the number of bins used to compute psi (default is 10)
-        ...
-        """
-
-        # get bins
-        min_val = min(min(scores1), min(scores2)) # TODO? could bring this up a function for efficiency
-        max_val = max(min(scores1), max(scores2))
-        if bin_types == 'fixed':
-            bins = [min_val + (max_val - min_val) * i / n_bins for i in range(n_bins + 1)]
-        elif bin_types == 'quantiles':
-            bins = pd.qcut(scores1, q=n_bins, retbins=True, duplicates='drop')[1]
-            n_bins = len(bins) - 1 # some bins could be dropped due to duplication
-        eps = 1e-6
-        bins[0] -= -eps
-        bins[-1] += eps
-
-        # group data into bins and get percentage rates
-        scores1_bins = pd.cut(scores1, bins=bins, labels=range(n_bins))
-        scores2_bins = pd.cut(scores2, bins=bins, labels=range(n_bins))
-        df1 = pd.DataFrame({'score1': scores1, 'bin': scores1_bins})
-        df2 = pd.DataFrame({'score2': scores2, 'bin': scores2_bins})
-        grp1 = df1.groupby('bin').count()['score1']
-        grp2 = df2.groupby('bin').count()['score2']
-        grp1_rate = (grp1 / sum(grp1)).rename('rate1')
-        grp2_rate = (grp2 / sum(grp2)).rename('rate2')
-        grp_rates = pd.concat([grp1_rate, grp2_rate], axis=1).fillna(0)
-
-        # add a small value when the percent is zero
-        grp_rates = grp_rates.applymap(lambda x: eps if x == 0 else x)
-
-        # calculate psi
-        psi_vals = (grp_rates['rate1'] - grp_rates['rate2']) * np.log(grp_rates['rate1'] / grp_rates['rate2'])
-        return psi_vals.mean()
-
-    def gen_csi(self, bin_types='fixed', n_bins=10):
-        """
-        Generate Characteristic Stability Index (CSI) values for all features between all pairs of datasets.
-
-        Note: CSI is symmetric provided the bins are the same, which they are when bin_types='fixed'
-        
-        Parameters
-        ----------
-            bin_types : str, optional
-                the method for choosing bins, either 'fixed' or 'quantiles' (default is 'fixed')
-            n_bins : int, optional
-                the number of bins used to compute csi (default is 10)
-        """
-        
-        self.logger.info(f"----- Generating CSI -----")
-
-        # check for valid input
-        assert bin_types in {'fixed', 'quantiles'}, "bin_types must be in {'fixed', 'quantiles'}"
-
-        # intialize output dataframe
-        csi_df = pd.DataFrame(columns=['dataset1', 'dataset2', 'feature', 'csi'])
-
-        for feature in tqdm(self.features):
-            
-            # get dictionary of values for the given feature from all datasets
-            vals_dict = {}
-            for dataset_name, dataset in self.data.items():
-                scores = dataset['X'][feature]
-                scores.sort_values()
-                vals_dict[dataset_name] = scores
-            
-            # compute csi for each pair of datasets
-            for i, dataset_name1 in enumerate(self.dataset_names):
-                for j in range(i+1, len(self.dataset_names)):
-                    dataset_name2 = self.dataset_names[j]
-                    scores1 = vals_dict[dataset_name1]
-                    scores2 = vals_dict[dataset_name2]
-                    csi_val = self._psi_compare(scores1, scores2, bin_types=bin_types, n_bins=n_bins)
-                    row = {
-                        'dataset1': dataset_name1,
-                        'dataset2': dataset_name2,
-                        'feature': feature,
-                        'csi': csi_val
-                    }
-                    csi_df = csi_df.append(row, ignore_index=True)
-            
-        # save output to csv
-        self.explain_dir.mkdir(exist_ok=True)
-        csi_df.sort_values('csi', ascending=False, inplace=True)
-        csi_df.to_csv(self.explain_dir/'csi_long.csv', index=False)
-
-        # convert csi dataframe to wide format
-        csi_df['datasets'] = csi_df['dataset1'] + '-' + csi_df['dataset2']
-        csi_df = csi_df[['feature','datasets','csi']]
-        csi_df.set_index('feature', inplace=True)
-        csi_df = csi_df.pivot(columns='datasets')['csi']
-        
-        # reorder to the same order as self.features, and save to csv
-        csi_df.reset_index(inplace=True)
-        csi_df['feature'] = pd.Categorical(csi_df['feature'], self.features)
-        csi_df = csi_df.sort_values("feature").set_index("feature")
-        csi_df.to_csv(self.explain_dir/'csi_wide.csv')
-
-    def gen_vif(self):
-        """
-        Generate Variance Inflation Factor (VIF) tables for each dataset.
-
-        VIF = 1  => no correlation
-        VIF > 10 => high correlation between an independent variable and the others
-        """
-
-        self.logger.info(f"----- Generating VIF -----")
-        
-        # make directory for VIF tables
-        vif_dir = self.explain_dir / "vif"
-        vif_dir.mkdir(parents=True, exist_ok=True)
-
-        # calculate VIF values for each feature in each dataset
-        for dataset_name, dataset in tqdm(self.data.items()):
-            df = pd.DataFrame({'feature': self.features})
-            X = dataset['X'].values
-            df["vif"] = [variance_inflation_factor(X, i) for i in range(len(self.features))]
-            df.to_csv(vif_dir/f'vif_{dataset_name}.csv', index=False)
-
-    def gen_woe_iv(self, bin_types='quantiles', n_bins=10):
-        """
-        Generate Weight of Evidence and Information Value tables for each dataset.
-
-                IV < 0.02 => not useful for prediction
-        0.02 <= IV < 0.1  => weak predictive power
-        0.1  <= IV < 0.3  => medium predictive power
-        0.3  <= IV < 0.5  => strong predictive power
-        0.5  <= IV        => suspicious predictive power
-
-        Parameters
-        ----------
-            bin_types : str, optional
-                the method for choosing bins, either 'fixed' or 'quantiles' (default is 'quantiles')
-            n_bins : int, optional
-                the number of bins used to compute woe and iv (default is 10)
-        """
-
-        if not self.binary_classification:
-            msg = "self.binary_classification must be True to run .gen_woe_iv()"
-            self.logger.warning(msg)
-            return
-
-        self.logger.info(f"----- Generating WOE and IV -----")
-
-        for dataset_name, dataset in self.data.items():
-
-            self.logger.info(f"generating woe and iv for {dataset_name} dataset")
-
-            # make output directory
-            woe_dir = self.explain_dir / 'woe_iv'
-            woe_dir.mkdir(parents=True, exist_ok=True)
-
-            # initialize lists to accumulate data
-            woe_df_list = []
-            iv_list = []
-
-            # get labels
-            y_true = self.data[dataset_name]['y']
-            
-            # generate woe and iv for all features
-            for feature in tqdm(self.features):
-
-                # get feature data
-                values = self.data[dataset_name]['X'][feature]
-
-                # get bins
-                if bin_types == 'fixed':
-                    min_val = min(values)
-                    max_val = max(values)
-                    bins = [min_val + (max_val - min_val) * i / n_bins for i in range(n_bins + 1)]
-                elif bin_types == 'quantiles':
-                    bins = pd.qcut(values, q=n_bins, retbins=True, duplicates='drop')[1]
-                eps = 1e-6
-                bins[0] -= -eps # add buffer to include points right at the edge.
-                bins[-1] += eps
-
-                # group data into bins
-                value_bins = pd.cut(values, bins=bins)
-                df = pd.DataFrame({'label': y_true, 'bin': value_bins})
-                
-                # get counts
-                df = df.groupby(['bin']).agg({'label': [sum,len]})['label']
-                df['cnt_0'] = df['len'] - df['sum'] # count of 0-label events
-                df.rename(columns={'sum': 'cnt_1'}, inplace=True) # count of 1-label events
-
-                # reformat dataframe
-                df.drop(columns=['len'], inplace=True)
-                df.reset_index(inplace=True)
-                df['feature'] = feature # add feature
-                df = df.reindex(columns=['feature', 'bin', 'cnt_0','cnt_1']) # reorder columns
-                
-                # get rates
-                df['pct_0'] = df['cnt_0'] / df['cnt_0'].sum()
-                df['pct_1'] = df['cnt_1'] / df['cnt_1'].sum()
-
-                # get WOEs and IV
-                df['woe'] = np.log(df['pct_1'] / df['pct_0'])
-                df['adj_woe'] = np.log(
-                    ((df['cnt_1'] + 0.5) / df['cnt_1'].sum())
-                  / ((df['cnt_0'] + 0.5) / df['cnt_0'].sum()))
-                iv = (df['woe'] * (df['pct_1'] - df['pct_0'])).sum()
-                adj_iv = (df['adj_woe'] * (df['pct_1'] - df['pct_0'])).sum()
-
-                # append to lists
-                woe_df_list.append(df)
-                iv_list.append({'feature': feature, 'iv': iv, 'adj_iv': adj_iv})
-
-            woe_df = pd.concat(woe_df_list)
-            woe_df.to_csv(woe_dir/f'woe_{dataset_name}.csv', index=False)
-
-            iv_df = pd.DataFrame.from_records(iv_list)
-            iv_df.sort_values('adj_iv', ascending=False, inplace=True)
-            iv_df.index.name = 'index'
-            iv_df.to_csv(woe_dir/f'iv_{dataset_name}.csv')
-
-    def gen_corr(self, max_features=100):
-        """
-        Generate correlation matrix and heatmap for each dataset.
-
-        Parameters
-        ----------
-            max_features : int, optional
-                the maximum number of features allowed for charts and plots to be generated
-        """
-
-        # check input
-        if len(self.features) > max_features:
-            msg = (f"not computing correlation matrix since there are {len(self.features)}"
-                   f" features, which more than max_features = {max_features}")
-            self.logger.warning(msg)
-            return
-        
-        self.logger.info(f"----- Generating Correlation Charts -----")
-
-        # make output directory
-        corr_dir = self.explain_dir / 'correlation'
-        corr_dir.mkdir(parents=True, exist_ok=True)
-
-        for dataset_name, dataset in self.data.items():
-            self.logger.info(f"generating correlations for {dataset_name} dataset")
-            corr = dataset['X'].corr()
-            corr_long = pd.melt(corr.reset_index(), id_vars='index') # unpivot to long format
-            # write to csv
-            corr.index.name = 'feature'
-            corr.to_csv(corr_dir/f'corr_{dataset_name}.csv')
-            corr_long.rename(columns={'variable': 'feature_1', 'index': 'feature_2', 'value': 'correlation'}, inplace=True)
-            corr_long = corr_long.reindex(columns=['feature_1', 'feature_2', 'correlation']) # reorder columns
-            corr_long = corr_long[corr_long.feature_1 != corr_long.feature_2]
-            corr_long.sort_values('correlation', key=abs, ascending=False, inplace=True)
-            corr_long.to_csv(corr_dir/f'corr_{dataset_name}_long.csv', index=False)
-            # plot heat map
-            self.plot_corr_heatmap(corr, corr_dir/f'heatmap_{dataset_name}.png', data_type='corr')
-
-
-    def plot_corr_heatmap(self, data, output_path, data_type='corr'):
-        """
-        Plot correlation heat map.
-
-        Parameters
-        ----------
-            data : dataframe
-                input data, either raw data, or correlation matrix, or long-format correlation matrix
-            output_path : str
-                the location where the plot should be written.
-                note that this function assumes that the parent folder exists.
-            data_type : str, optional
-                the type of input passed into the data argument (default is 'corr')
-                - 'features' => the raw feature table is passed in
-                - 'corr' => a correlation matrix is passed in
-                - 'corr_long' => a correlation matrix converted to long format is passed in
-
-        Credits: https://towardsdatascience.com/better-heatmaps-and-correlation-matrix-plots-in-python-41445d0f2bec
-        """
-
-        # check inputs
-        valid_data_types = {'features', 'corr', 'corr_long'}
-        assert data_type in valid_data_types, f"invalid data_type: {data_type}"
-
-        # process data into long-format correlation matrix, if required
-        if data_type == 'features':
-            data = data.corr()
-        if data_type in {'features', 'corr'}:
-            data.index.name = 'index'
-            data = pd.melt(data.reset_index(), id_vars='index') # unpivot to long format
-            data = data.reindex(columns=['variable', 'index', 'value']) # reorder columns
-        data.columns = ['feature_1', 'feature_2', 'correlation']
-
-        features = self.features
-
-        # set up colours
-        n_colors = 256 # Use 256 colors for the diverging color palette
-        palette = sns.diverging_palette(20, 220, n=n_colors) # Create the palette
-        color_min, color_max = [-1, 1] # Range of values that will be mapped to the palette, i.e. min and max possible correlation
-
-        def value_to_color(val):
-            val_position = float((val - color_min)) / (color_max - color_min) # position of value in the input range, relative to the length of the input range
-            ind = int(val_position * (n_colors - 1)) # target index in the color palette
-            return palette[ind]  
-
-        # parameterize sizes of objects in the image
-        size_factor = 1
-        plot_size = len(features) * size_factor
-        figsize = (plot_size * 15 / 14, plot_size) # multiple by 15/14 so the left main plot is square
-        font_size = 20 * size_factor
-        square_size_scale = (40 * size_factor) ** 2
-        size = data['correlation'].abs() # size of squares is dependend on absolute correlation
-        
-        # map feature to integer coordinates
-        feat_to_num = {feature: i for i, feature in enumerate(features)} 
-
-        with plt.style.context('seaborn-darkgrid'): 
-         
-            # create figure
-            fig = plt.figure(figsize=figsize, dpi=50)
-            plot_grid = plt.GridSpec(1, 15, hspace=0.2, wspace=0.1) # Setup a 1x15 grid
-            
-            # Use the leftmost 14 columns of the grid for the main plot
-            ax = plt.subplot(plot_grid[:,:-1])
-
-            # make main plot
-            ax.scatter(
-                x=data['feature_1'].map(feat_to_num), # Use mapping for feature 1
-                y=data['feature_2'].map(feat_to_num), # Use mapping for feature 2
-                s=size * square_size_scale, # Vector of square sizes, proportional to size parameter
-                c=data['correlation'].apply(value_to_color), # Vector of square color values, mapped to color palette
-                marker='s' # Use square as scatterplot marker
-            )
-            
-            # Show column labels on the axes
-            ax.set_xticks([feat_to_num[v] + 0.3 for v in features]) # add major ticks for the labels
-            ax.set_yticks([feat_to_num[v] for v in features])
-            ax.set_xticklabels(features, rotation=45, horizontalalignment='right', fontsize=font_size) # add labels
-            ax.set_yticklabels(features, fontsize=font_size)
-            ax.grid(False, 'major') # hide major grid lines
-            ax.grid(True, 'minor')
-            ax.set_xticks([feat_to_num[v] + 0.5 for v in features], minor=True) # add minor ticks for grid lines
-            ax.set_yticks([feat_to_num[v] + 0.5 for v in features], minor=True)
-
-            # set axis limits
-            ax.set_xlim([-0.5, len(features) - 0.5]) 
-            ax.set_ylim([-0.5, len(features) - 0.5])
-
-            # hide all ticks
-            plt.tick_params(axis='both', which='both', bottom=False, left=False)        
-
-            # Add color legend on the right side of the plot
-            ax = plt.subplot(plot_grid[:,-1]) # Use the rightmost column of the plot
-
-            col_x = [0] * len(palette) # Fixed x coordinate for the bars
-            bar_y = np.linspace(color_min, color_max, n_colors) # y coordinates for each of the n_colors bars
-
-            bar_height = bar_y[1] - bar_y[0]
-            ax.barh(
-                y=bar_y,
-                width=[5]*len(palette), # Make bars 5 units wide
-                left=col_x, # Make bars start at 0
-                height=bar_height,
-                color=palette,
-                linewidth=0
-            )
-            ax.set_xlim(1, 2) # Bars are going from 0 to 5, so lets crop the plot somewhere in the middle
-            ax.grid(False) # Hide grid
-            ax.set_facecolor('white') # Make background white
-            ax.set_xticks([]) # Remove horizontal ticks
-            ax.set_yticks(np.linspace(min(bar_y), max(bar_y), 3)) # Show vertical ticks for min, middle and max
-            ax.set_yticklabels([-1, 0, 1], fontsize=font_size)
-            ax.yaxis.tick_right() # Show vertical ticks on the right 
-
-            # save figure
-            plt.savefig(output_path, bbox_inches='tight')
-            plt.close()
 
     def gen_scores(self):
         """Save model scores for each row"""

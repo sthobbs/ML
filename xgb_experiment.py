@@ -77,43 +77,19 @@ class XGBExperiment(Experiment):
         # generate XGBoost metrics
         self.model_eval.xgb_evaluate(self.dataset_names)
 
-    def explain(self):
-        """
-        Generate model explanitory charts including feature importance
-        and shap values.
-        """
-
-        # Generate permutation feature importance and shapely value charts
-        super().explain()
-
-        
-        # Get XGBoost feature importance
-        self.logger.info(f"----- Generating XGBoost Feature Importances -----")
-        imp_types = ['gain', 'total_gain', 'weight', 'cover', 'total_cover'] # importance types
-        bstr = self.model.get_booster()
-        imps = [pd.Series(bstr.get_score(importance_type=t), name=t) for t in imp_types]
-        df = pd.concat(imps, axis=1) # dataframe of importances
-        df = df.apply(lambda x: x / x.sum(), axis=0) # normalize so each column sums to 1
-        df.sort_values('gain', ascending=False, inplace=True)
-        importance_dir = self.explain_dir / "feature_importance"
-        importance_dir.mkdir(parents=True, exist_ok=True)
-        df.to_csv(importance_dir/'xgb_feature_importance.csv')
-
-
 
 
 
 
 
 ### Next Steps
+# test explain code
 # relax required config variables
 # (M) comments
     # Returns --------, Examples --------- >>> (?)
 # (M) refactor explain code into seperate class
 # read hyperopt papers
 # read shap paper
-# add README.md with examples
-
 # Calibrate score (for binary classification)
     # plots
     # calibration model object
@@ -121,6 +97,8 @@ class XGBExperiment(Experiment):
     # (M) search for optimal number of splits
     # calibrate based on validation? (maybe use test if there is no validation)
     # I think I'll make another folder for it
+
+
 # GCP integration
     # move to and from gcs
     # read and write
@@ -134,7 +112,6 @@ class XGBExperiment(Experiment):
     # ...
 # GCP logging class
     # ...
-# run linter over code
 # unit tests (pytest)
 # use isinstance() in more places?
 # Curriculum learning sequences
