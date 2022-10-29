@@ -119,7 +119,8 @@ class ModelEvaluate():
         
         for X, y_true, dataset_name in self.datasets:
             self.logger.info(f"----- Generating {dataset_name} Data Metrics -----")
-            y_score = self.model.predict_proba(X)[:,1]
+            y_score = self.model.predict_proba(X)
+            if y_score.ndim == 2: y_score = y_score[:,1]
             
             # Generate Precision/Recall vs Threshold
             precision, recall, thresholds = precision_recall_curve(y_true, y_score)
@@ -407,7 +408,8 @@ class ModelEvaluate():
 
         # generate KS Statistic for each dataset
         for X, y_true, dataset_name in self.datasets:
-            y_score = self.model.predict_proba(X)[:,1]
+            y_score = self.model.predict_proba(X)
+            if y_score.ndim == 2: y_score = y_score[:,1]
             ks_stat, p_value = ks_2samp(y_score[y_true==0], y_score[y_true==1])
             row = {'dataset': dataset_name, 'ks': ks_stat, 'p-value': p_value}
             performance.append(row)

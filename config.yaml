@@ -1,7 +1,7 @@
 
-#-----------------------------------
-#---------- Meta Config ------------
-#-----------------------------------
+# ----------------------------------
+# ---------- Meta Config -----------
+# ----------------------------------
 
 version: 1.0.1
 description: test experiment
@@ -16,9 +16,9 @@ description: test experiment
   # meaning: description of current experiment
 
 
-#-----------------------------------
-#---------- Input Config -----------
-#-----------------------------------
+# ----------------------------------
+# ---------- Input Config ----------
+# ----------------------------------
 
 ### Input Data
 data_dir: C:/Users/hobbs/Documents/Programming/ML/Datasets/creditcard  # data directory
@@ -50,11 +50,11 @@ input_model_path:
     # leave empty if you don't want to load a model
 
 
-#-----------------------------------
-#---------- Output Config ----------
-#-----------------------------------
+# ----------------------------------
+# --------- Output Config ----------
+# ----------------------------------
 
-### Experiment Directory
+### Experiments Directory
 experiment_dir: C:/Users/hobbs/Documents/Programming/ML/Experiments
 # experiment_dir
   # required, type: str
@@ -70,19 +70,25 @@ model_dir: model # for model objects
 explain_dir: explain # for model explanatory objects
 score_dir: scores # for model scores (only required if save_scores == True)
 log_dir: logs # for logging (default 'logs')
+calibration_dir: calibration # for model calibration
 
 
 ### Other
+performance_increment: 0.01
 save_scores: False
+# performance_increment
+  # not required, default 0.01, type: float (or str that can cast to float)
+  # valid values: between 0 and 1
+  # meaning: the threshold increment used in model performance charts
 # save_scores
   # required, type: boolean
   # valid values: True, False
   # meaning: True => save model scores for transaction data (along with aux_fields)
 
 
-#-----------------------------------
-#----------- Job Config ------------
-#-----------------------------------
+# ----------------------------------
+# ----------- Job Config -----------
+# ----------------------------------
 
 ### Model Type
 model_type: XGBClassifier
@@ -174,9 +180,9 @@ verbose: 10
   # meaning: how frequently to print output (only applies to XGBoost models)
 
 
-#-----------------------------------
-#--------- Hyperparameters ---------
-#-----------------------------------
+# ----------------------------------
+# -------- Hyperparameters ---------
+# ----------------------------------
 
 ### Hyperparameters
 hyperparameters:
@@ -204,7 +210,7 @@ hyperparameters:
 
 
 ### Hyperparameter Tuning
-hyperparameter_tuning: True # True or False
+hyperparameter_tuning: False # True or False
 hyperparameter_eval_metric: log_loss # average_precision, aucpr, auc, log_loss, brier_loss
 # hyperparameter_tuning
   # not required, default False, type: boolean
@@ -231,7 +237,7 @@ cv_folds: 5
 
 
 ### Hyperparameter Tuning Algorithm
-tuning_algorithm: grid # grid, random, tpe, or atpe.
+tuning_algorithm: random # grid, random, tpe, or atpe.
 grid_search_n_jobs: 5
 tuning_iterations: 10 # need to specify for random, tpe, or atpe
 # tuning_algorithm
@@ -258,9 +264,9 @@ tuning_iterations: 10 # need to specify for random, tpe, or atpe
 
 
 ### Tuning Parameters
-tuning_parameters:
-  min_child_weight: [3]
-  max_depth: [1, 2]
+# tuning_parameters:
+#   min_child_weight: [3]
+#   max_depth: [1, 2]
 # tuning_parameters
   # not required, default None, type: None or dict
   # meaning: specifies the distributions over which to search for hyperparameters
@@ -286,62 +292,62 @@ tuning_parameters:
 
 # Example - Random, TPE, or ATPE
 # ----------------------
-# tuning_parameters:
-#   n_estimators:
-#     function: quniform
-#     params:
-#       low: 50
-#       high: 1500
-#       q: 1
-#   learning_rate:
-#     function: uniform
-#     params:
-#       low: 0.001
-#       high: 0.1
-#   gamma:
-#     function: uniform
-#     params:
-#       low: 0
-#       high: 5
-#   max_depth:
-#     function: choice # could use quniform here
-#     params:
-#       options: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-#   min_child_weight:
-#     function: uniform 
-#     params:
-#       low: 0
-#       high: 5
-#   subsample:
-#     function: uniform 
-#     params:
-#       low: 0
-#       high: 1
-#   colsample_bytree:
-#     function: uniform 
-#     params:
-#       low: 0
-#       high: 1
-#   reg_lambda:
-#     function: normal
-#     params:
-#       mu: 1
-#       sigma: 0.1
-#   reg_alpha:
-#     function: uniform
-#     params:
-#       low: 0
-#       high: 5
+tuning_parameters:
+  n_estimators:
+    function: quniform
+    params:
+      low: 50
+      high: 1500
+      q: 1
+  learning_rate:
+    function: uniform
+    params:
+      low: 0.001
+      high: 0.1
+  gamma:
+    function: uniform
+    params:
+      low: 0
+      high: 5
+  max_depth:
+    function: choice # could use quniform here
+    params:
+      options: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+  min_child_weight:
+    function: uniform 
+    params:
+      low: 0
+      high: 5
+  subsample:
+    function: uniform 
+    params:
+      low: 0
+      high: 1
+  colsample_bytree:
+    function: uniform 
+    params:
+      low: 0
+      high: 1
+  reg_lambda:
+    function: normal
+    params:
+      mu: 1
+      sigma: 0.1
+  reg_alpha:
+    function: uniform
+    params:
+      low: 0
+      high: 5
 
 
-#-----------------------------------
-#------ Model explainability -------
-#-----------------------------------
+# ----------------------------------
+# ------ Model explainability ------
+# ----------------------------------
 
 ### Permutation Feature Importance
 permutation_importance: False
 perm_imp_metrics: [roc_auc, average_precision, neg_log_loss]
-perm_imp_n_repeats: 10
+perm_imp_n_repeats: 3
 # permutation_importance
   # not required, default False, type: boolean
   # valid values: True, False
@@ -434,7 +440,7 @@ woe_n_bins: 10
 
 
 ### Correlation Matrix and Heatmap
-correlation: True
+correlation: False
 corr_max_features: 100
 # correlation
   # not required, default False, type: boolean
@@ -445,3 +451,25 @@ corr_max_features: 100
   # valid values: None or int > 1
   # meaning: maximum number of features allowed for correlation matricies and heatmap to be generated.
     # this is included to prevent long runtimes if there are too many features
+
+
+# ----------------------------------
+# ------- Model Calibration --------
+# ----------------------------------
+
+model_calibration: True
+calibration_type: logistic
+calibration_train_dataset_name: validation
+# calibration
+  # not required, default False, type: boolean
+  # valid values: True, False
+  # meaning: True => calibrate model to a probability using the validation dataset
+# calibration_type
+  # not required, default 'logistic', type: string
+  # valid values: isotonic, logistic
+  # meaning: The type of model calibration to apply (isotonic regression or logistic regression)            
+# calibration_train_dataset_name
+  # not required, default 'validation', type: string
+  # valid values: any named dataset in data_file_patterns
+  # meaning: the name of the dataset that will be used to train a calibration model
+

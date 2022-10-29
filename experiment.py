@@ -2,8 +2,12 @@
 import xgboost as xgb
 from sklearn import ensemble, tree, neural_network, neighbors, linear_model, cluster, base
 from sklearn.utils import shuffle
-from sklearn.model_selection import ParameterGrid, cross_val_score, GridSearchCV, PredefinedSplit
-from sklearn.metrics import make_scorer
+from sklearn.model_selection import ParameterGrid, cross_val_score, GridSearchCV, \
+    PredefinedSplit, StratifiedKFold
+from sklearn.metrics import make_scorer, roc_curve, precision_recall_curve
+from sklearn.linear_model import LogisticRegression
+from sklearn.isotonic import IsotonicRegression
+from sklearn.calibration import calibration_curve
 import numpy as np
 from pathlib import Path
 import yaml, pickle, os, time, random
@@ -16,8 +20,10 @@ import dask.dataframe as dd
 from dask.diagnostics import ProgressBar
 ProgressBar().register()
 import logging
+import matplotlib.pyplot as plt
 from model_evaluate import ModelEvaluate, metric_score
 from model_explain import ModelExplain
+
 
 
 class ConfigError(Exception):
@@ -65,7 +71,7 @@ class Experiment():
         # ------ Input Config -------
         self.data_dir = Path(self.config["data_dir"])
         self.data_file_patterns = self.config["data_file_patterns"]
-        self.input_model_path = self.config.get("input_model_path", None)
+        self.input_model_path = self.config.get("input_model_path")
         
         # ------ Output Config -------
         self.experiment_dir = Path(self.config["experiment_dir"])
@@ -78,6 +84,8 @@ class Experiment():
         if self.save_scores:
             self.score_dir = self.output_dir / self.config["score_dir"]
         self.log_dir = self.output_dir / self.config.get("log_dir", "logs")
+        self.calibration_dir = self.output_dir / self.config.get("calibration_dir", "calibration")
+        self.performance_increment = float(self.config.get("performance_increment", 0.01))
         
         # ------ Job Config -------
         self.model_type = self.config["model_type"]
@@ -87,7 +95,7 @@ class Experiment():
         if self.supervised:
             self.label = self.config["label"]
         self.features = self.config["features"]
-        self.aux_fields = self.config.get("aux_fields", None)
+        self.aux_fields = self.config.get("aux_fields")
         if self.aux_fields is None:
             self.aux_fields = []
         elif isinstance(self.aux_fields, str):
@@ -106,12 +114,12 @@ class Experiment():
         self.hyperparameter_eval_metric = self.config.get("hyperparameter_eval_metric", "log_loss")
         self.cross_validation = self.config.get("cross_validation", False)
         self.cv_folds = self.config.get("cv_folds", 5)
-        self.tuning_algorithm = self.config.get("tuning_algorithm", None)
+        self.tuning_algorithm = self.config.get("tuning_algorithm")
         self.grid_search_n_jobs = self.config.get("grid_search_n_jobs", 1)
-        self.tuning_iterations = self.config.get("tuning_iterations", None)
-        self.tuning_parameters = self.config.get("tuning_parameters", None)
+        self.tuning_iterations = self.config.get("tuning_iterations")
+        self.tuning_parameters = self.config.get("tuning_parameters")
 
-        # ------ Model explainability -------
+        # ------ Model Explainability -------
         # Permutation Importance
         self.permutation_importance = self.config.get("permutation_importance", False)
         self.perm_imp_metrics = self.config.get("perm_imp_metrics", "neg_log_loss")
@@ -120,7 +128,7 @@ class Experiment():
         self.perm_imp_n_repeats = int(self.config.get("perm_imp_n_repeats", 10))
         # Shapely Values
         self.shap = self.config.get("shap", False)
-        self.shap_sample = self.config.get("shap_sample", None)
+        self.shap_sample = self.config.get("shap_sample")
         # Population Stability Index
         self.psi = self.config.get("psi", False)
         self.psi_bin_types = self.config.get("psi_bin_types", "fixed")
@@ -139,10 +147,16 @@ class Experiment():
         self.correlation = self.config.get("correlation", False)
         self.corr_max_features = self.config.get("corr_max_features", 100)
 
+        # ------ Model Calibration -------
+        self.model_calibration = self.config.get("model_calibration", False)
+        self.calibration_type = self.config.get("calibration_type", "logistic")
+        self.calibration_train_dataset_name = self.config.get("calibration_train_dataset_name", "validation")
+
         # ------ Other -------
         self.data = {} # where data will be stored
         self.aux_data = {} # where auxiliary fields will be stored
         self.model = None
+        self.plot_context = 'seaborn-darkgrid' # Set plot context
         
         # specific order for dataset_names (for appropriate early stopping if enabled)
         all_names = set(self.data_file_patterns)
@@ -187,14 +201,16 @@ class Experiment():
             'seed', 'hyperparameters',
         }
         other_valid_keys = {
-            'input_model_path', 'score_dir', 'log_dir', 'label', 'aux_fields',
-            'verbose', 'hyperparameter_tuning',  'hyperparameter_eval_metric',
+            'input_model_path', 'score_dir', 'log_dir', 'calibration_dir', 
+            'performance_increment', 'label', 'aux_fields', 'verbose', 
+            'hyperparameter_tuning',  'hyperparameter_eval_metric',
             'cross_validation', 'cv_folds', 'tuning_algorithm',
             'grid_search_n_jobs',  'tuning_iterations', 'tuning_parameters',
             'permutation_importance', 'perm_imp_metrics', 'perm_imp_n_repeats',
             'shap', 'shap_sample', 'psi', 'psi_bin_types', 'psi_n_bins', 'csi',
             'csi_bin_types', 'csi_n_bins', 'vif', 'woe_iv', 'woe_bin_types',
-            'woe_n_bins', 'correlation', 'corr_max_features'
+            'woe_n_bins', 'correlation', 'corr_max_features', 'model_calibration',
+            'calibration_type', 'calibration_train_dataset_name'
         }
         valid_keys = required_keys.union(other_valid_keys)
         keys_with_required_vals = {
@@ -237,9 +253,20 @@ class Experiment():
         
         # check for score_dir value if we want to save model scores
         if self.config["save_scores"]:
-            if not self.config.get("score_dir", None):
+            if not self.config.get("score_dir"):
                 raise ConfigError(f"missing score_dir key or value")
         
+        # check performance_increment
+        # check performance_increment (either no key, None or castable to float between 0 and 1)
+        performance_increment = self.config.get("performance_increment")
+        if performance_increment is not None:
+            try:
+                performance_increment = float(performance_increment)
+            except Exception as e:
+                raise ConfigError(f"shap_sample exception converting to int: {e}")
+            if not 0 < performance_increment < 1:
+                raise ConfigError(f"performance_increment must be between 0 and 1")
+
         # check that features is a list of length >= 1
         if type(self.config["features"]) != list or len(self.config["features"]) < 1:
             raise ConfigError("features must be a list with len >= 1")
@@ -268,7 +295,7 @@ class Experiment():
             raise ConfigError(f"supervised should be False when model_type = {model_type}")
         
         # check label is consistent with supervised
-        if self.config["supervised"] and not self.config.get("label", None):
+        if self.config["supervised"] and not self.config.get("label"):
             raise ConfigError(f"need label when supervised = True")
         
         # check eval_metric
@@ -290,7 +317,7 @@ class Experiment():
         
         # check that hyperparamter tuning algorithm is valid
         if self.config.get("hyperparameter_tuning", False):
-            if self.config.get("tuning_algorithm", None) not in {"grid", "random", "tpe", "atpe"}:
+            if self.config.get("tuning_algorithm") not in {"grid", "random", "tpe", "atpe"}:
                 msg = f'tuning_algorithm value must be in {"grid", "random", "tpe", "atpe"}'
                 raise ConfigError(msg)
             # check grid_search_n_jobs
@@ -304,7 +331,7 @@ class Experiment():
                     raise ConfigError("invalid grid_search_n_jobs value")
             # check tuning_iterations
             if self.config["tuning_algorithm"] in {"random", "tpe", "atpe"}:
-                if not self.config.get("tuning_iterations", None):
+                if not self.config.get("tuning_iterations"):
                     msg = "must specify tuning_iterations for the chosen tuning_algorithm"
                     raise ConfigError(msg)
             valid_metrics = {'average_precision', 'aucpr', 'auc', 'log_loss', 'brier_loss'}
@@ -375,7 +402,7 @@ class Experiment():
             raise ConfigError(f"perm_imp_n_repeats exception converting to int: {e}")
         
         # check shap_sample (either no key, None or castable to int)
-        shap_sample = self.config.get("shap_sample", None)
+        shap_sample = self.config.get("shap_sample")
         if shap_sample is not None:
             try:
                 int(shap_sample)
@@ -384,14 +411,26 @@ class Experiment():
 
         # check psi_bin_types, csi_bin_types, and woe_bin_types (no key, None, 'fixed' or 'quantiles')
         for feature in {'psi_bin_types', 'csi_bin_types', 'woe_bin_types'}:
-            bin_types = self.config.get(feature, None)
+            bin_types = self.config.get(feature)
             if bin_types not in {None, 'fixed', 'quantiles'}:
                 msg = f"if {feature} is present, it must be 'fixed', 'quantiles', or empty"
                 raise ConfigError(msg)
 
+        # check calibration_type (no key, None, 'isotonic' or 'logistic')
+        if self.config.get('calibration_type') not in {None, 'isotonic', 'logistic'}:
+            msg = f"if 'calibration_type' is present, it must be 'isotonic', 'logistic', or empty"
+            raise ConfigError(msg)
+
+        # check calibration_train_dataset_name (must be valid dataset name)
+        if self.config.get('model_calibration') and \
+        self.config.get('calibration_train_dataset_name') not in self.config.get("data_file_patterns", []):
+            msg = ("if 'model_calibration' is True, calibration_train_dataset_name must be a named",
+                   " dataset in data_file_patterns")
+            raise ConfigError(msg)
+
         # check no key, None, or castable to int (>1))
         for feature in {'psi_n_bins', 'csi_n_bins', 'woe_n_bins', 'corr_max_features'}:
-            num = self.config.get(feature, None)
+            num = self.config.get(feature)
             if num is not None:
                 try:
                     int(num)
@@ -401,7 +440,7 @@ class Experiment():
                     raise ConfigError(f"if {feature} is an int, it should be > 1")
         # check no key, None, or castable to int (>=1))
         for feature in {'cv_folds'}:
-            num = self.config.get(feature, None)
+            num = self.config.get(feature)
             if num is not None:
                 try:
                     int(num)
@@ -421,10 +460,10 @@ class Experiment():
         # check non-required boolean keys
         boolean_keys = {
             'cross_validation', 'permutation_importance', 'shap', 'psi', 'csi',
-            'vif', 'woe_iv', 'correlation',
+            'vif', 'woe_iv', 'correlation', 'model_calibration'
         }
         for k in boolean_keys:
-            if self.config.get(k, None) not in {True, False, None}:
+            if self.config.get(k) not in {True, False, None}:
                 raise ConfigError(f"if {k} is present, it must be True, False, or empty")
 
     def run(self):
@@ -436,15 +475,18 @@ class Experiment():
             5) model evaluation
             6) generating model explanitory artifacts
             7) saving model scores
+            8) calibrating a model
         """
 
         self.setup()
         self.train()
         self.save_model()
-        self.evaluate()
+        self.evaluate(self.performance_increment)
         self.explain()
         if self.save_scores:
             self.gen_scores()
+        if self.model_calibration:
+            self.calibrate(calibration_type=self.calibration_type, bin_types='uniform', n_bins=5)
 
     def setup(self):
         """
@@ -867,8 +909,6 @@ class Experiment():
         if isinstance(self.model, xgb.XGBModel):
             model_explain.xgb_explain()
 
-
-
     def gen_scores(self):
         """Save model scores for each row"""
 
@@ -882,4 +922,206 @@ class Experiment():
             df.to_csv(path, index=False)
             self.logger.info(f"Saved {dataset_name} scores to {path}")
 
-      
+    def calibrate(self, calibration_type='logistic', bin_types='uniform', n_bins=5):
+        """
+        Calibrate a binary classification model to output probability of true positive
+        and generate performance metrics for the caalibrated model.
+        
+        Parameters
+        ----------
+            calibration_type : {'isotonic', 'logistic'}, default = 'logistic'
+                The type of calibration model to fit
+            bin_types : {'uniform', 'quantile'}, default = 'uniform'
+                Strategy used to define the widths of the bins for the calibration plots
+            n_bins : int > 1, default = 5
+                Number of bins to discretize the [0, 1] interval in the calibration plots
+        """
+
+        # Check input
+        valid_types = {'isotonic', 'logistic'}
+        assert calibration_type in valid_types, \
+            f"calibration_type must be in {valid_types}, not {calibration_type}"
+        valid_types = {'uniform', 'quantile'}
+        assert bin_types in valid_types, f"bin_types must be in {valid_types}, not {bin_types}"
+        assert self.binary_classification, "binary_classification must be True for .calibrate()"
+
+        # TODO: add to config validation
+            # if calibration: True, then we must have datasets for both validation and test
+
+        self.logger.info(f"----- Calibrating Model -----")
+
+        # make directories and close existing figures
+        comparison_dir = self.calibration_dir / 'comparison'
+        comparison_dir.mkdir(parents=True, exist_ok=True)
+        performance_dir = self.calibration_dir / 'performance'
+        
+
+        plt.close('all')
+
+        # calibrate model
+        dataset_name = self.calibration_train_dataset_name # validation
+        y_score = self.model.predict_proba(self.data[dataset_name]['X'])[:,1]
+        # y_score = y_score.reshape(-1, 1) # make into 2d array for .fit
+        y_true = self.data[dataset_name]['y']
+        calibrator = Calibrator(calibration_type)
+        calibrator.fit(y_score, y_true)
+        
+        # evaluate calibration on each dataset
+        calibrated_scores = {}
+        for dataset_name, dataset in self.data.items():
+
+            y_true = dataset['y']
+            y_score = self.model.predict_proba(dataset['X'])[:,1]
+            
+            # calibrate score 
+            y_cal = calibrator.predict_proba(y_score)
+            calibrated_scores[dataset_name] = y_cal
+
+            # ---------------------------------------------------
+            # plot calibration curves (i.e. reliability diagrams)
+            # ---------------------------------------------------
+            with plt.style.context(self.plot_context):
+                fontsize = 20
+                
+                # plot uncalibrated score
+                prob_true, prob_score = calibration_curve(y_true, y_score, n_bins=n_bins, strategy=bin_types)
+                plt.figure(figsize=(20, 10))
+                plt.subplot(1, 2, 1)
+                plt.plot(prob_score, prob_true)
+                plt.plot([[0,0], [1,1]])
+                plt.title(f"Uncalibrated Curve for {dataset_name} Dataset", fontsize=fontsize)
+                plt.xlabel("Raw Score", fontsize=fontsize)
+                plt.ylabel("Probability of TP", fontsize=fontsize)
+
+                # plot calibrated score
+                prob_true, prob_cal_score = calibration_curve(y_true, y_cal, n_bins=n_bins, strategy=bin_types)
+                plt.subplot(1, 2, 2)
+                plt.plot(prob_cal_score, prob_true)
+                plt.plot([[0,0], [1,1]])
+                plt.title(f"Uncalibrated Curve for {dataset_name} Dataset", fontsize=fontsize)
+                plt.xlabel("Raw Score", fontsize=fontsize)
+                plt.ylabel("Probability of TP", fontsize=fontsize)
+                plt.savefig(f'{comparison_dir}/calibration_curves_{dataset_name}.png')
+                self.logger.info(f'Plotted Calibration Curves ({dataset_name} data)')
+            plt.close()
+
+            # ----------------------------
+            # plot performance comparisons
+            # ----------------------------
+            
+            # raw score
+            fpr, tpr, _ = roc_curve(y_true, y_score)
+            precision, recall, thresholds = precision_recall_curve(y_true, y_score)
+            
+            # calibrated score
+            fpr_cal, tpr_cal, _ = roc_curve(y_true, y_score)
+            precision_cal, recall_cal, thresholds_cal = precision_recall_curve(y_true, y_cal)
+
+            with plt.style.context(self.plot_context):
+    
+                plt.figure(figsize=(20, 5))
+                fontsize = 15
+
+                # plot ROC
+                plt.subplot(1, 4, 1)
+                plt.plot(fpr, tpr, 'g-', label="Raw")
+                plt.plot(fpr_cal, tpr_cal, 'b--', label='Calibrated')
+                plt.xlim(-0.05, 1.05)
+                plt.ylim(-0.05, 1.05)
+                plt.xlabel('FPR', fontsize=fontsize)
+                plt.ylabel('TPR', fontsize=fontsize)
+                plt.title(f'ROC', fontsize=fontsize)
+                plt.legend(loc="lower right")
+
+                # plot Pecision vs Recall
+                plt.subplot(1, 4, 2)
+                plt.plot(recall, precision, 'g-', label="Raw")
+                plt.plot(recall_cal, precision_cal, 'b--', label='Calibrated')
+                plt.xlim(-0.05, 1.05)
+                plt.ylim(-0.05, 1.05)
+                plt.xlabel('Recall', fontsize=fontsize)
+                plt.ylabel('Precision', fontsize=fontsize)
+                plt.title(f'Precision vs Recall', fontsize=fontsize)
+                plt.legend(loc="upper right")
+            
+                # plot Recall vs Score
+                plt.subplot(1, 4, 3)
+                plt.plot(thresholds, recall[:-1], 'g-', label="Raw")
+                plt.plot(thresholds_cal, recall_cal[:-1], 'b--', label='Calibrated')
+                plt.xlim(-0.05, 1.05)
+                plt.ylim(-0.05, 1.05)
+                plt.xlabel('Score', fontsize=fontsize)
+                plt.ylabel('Recall', fontsize=fontsize)
+                plt.title(f'Recall vs Score', fontsize=fontsize)
+                plt.legend(loc="upper right")
+                
+                # plot Pecision vs Score
+                plt.subplot(1, 4, 4)
+                plt.plot(thresholds, precision[:-1], 'g-', label="Raw")
+                plt.plot(thresholds_cal, precision_cal[:-1], 'b--', label='Calibrated')
+                plt.xlim(-0.05, 1.05)
+                plt.ylim(-0.05, 1.05)
+                plt.xlabel('Score', fontsize=fontsize)
+                plt.ylabel('Precision', fontsize=fontsize)
+                plt.title(f'Precision vs Score', fontsize=fontsize)
+                plt.legend(loc="lower right")
+                plt.savefig(f'{comparison_dir}/compare_{dataset_name}.png')     
+            plt.close()
+
+            # score calibration mapping
+            increment = 0.0001
+            score = np.arange(0, 1, increment)
+            score_cal = calibrator.predict_proba(score)
+            plt.plot(score, score_cal)
+            plt.xlabel("Score")
+            plt.ylabel("Calibrated Score")
+            plt.title("Raw Score to Calibrated Score Mapping")
+            plt.savefig(f'{comparison_dir}/score_mapping_{dataset_name}.png')
+            plt.close()
+            df = pd.DataFrame({"score": score, "calibrated_score": score_cal})
+            df.to_csv(comparison_dir/f"mapping_table_{dataset_name}.csv", index=False)
+
+        # Evaluate model on calibrated score and generate performance charts        
+        if self.binary_classification:
+            datasets = [(calibrated_scores[n], self.data[n]['y'], n) for n in self.dataset_names] 
+            self.model_eval = ModelEvaluate(calibrator, datasets, performance_dir, logger=self.logger)
+            self.model_eval.binary_evaluate(self.performance_increment)
+
+
+
+
+class Calibrator():
+    """Wrapper for calibration model"""
+
+    def __init__(self, calibration_type='isotonic'):
+
+        # check for invalid input
+        valid_types = {'isotonic', 'logistic'}
+        assert calibration_type in valid_types, \
+            f"calibration_type must be in {valid_types}, not {calibration_type}"
+
+        # make calibration model
+        if calibration_type == 'isotonic':
+            self.model = IsotonicRegression(y_min=0, y_max=1, out_of_bounds='clip')
+        elif calibration_type == 'logistic':
+            self.model = LogisticRegression()
+
+        self.calibration_type = calibration_type
+        
+    def fit(self, y_score, y_true):
+        if y_score.ndim == 1:
+            y_score = y_score.reshape(-1, 1) # make into 2d array for .fit
+        self.model.fit(y_score, y_true)
+
+    def predict_proba(self, y_score):
+        if y_score.ndim == 1:
+            y_score = y_score.reshape(-1, 1) # make into 2d array
+        if self.calibration_type == 'isotonic':
+           return self.model.transform(y_score)
+        elif self.calibration_type == 'logistic':
+            return self.model.predict_proba(y_score)[:,1]
+
+
+
+
+
