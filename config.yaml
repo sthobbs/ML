@@ -164,7 +164,7 @@ aux_fields:
     # Note: required if supervised is True
 # aux_fields
   # not required, default [] (empty list), type: str or list of str
-  # meaning: list of auxiliary fields to use to create additional metrics 
+  # meaning: list of auxiliary fields to use to create additional metrics (must also be in features)
 
 
 ### Other
@@ -379,13 +379,13 @@ shap_sample: 50000 #
 
 ### Population Stability Index
 psi: False
-psi_bin_types: fixed
+psi_bin_type: fixed
 psi_n_bins: 10
 # psi
   # not required, default False, type: boolean
   # valid values: True, False
   # meaning: True => generate psi for all pairs of datasets
-# psi_bin_types
+# psi_bin_type
   # not required, default 'fixed', type: string
   # valid values: 'fixed', 'quantiles'
   # meaning: when to use evenly spaced bins or quantiles when calculating psi
@@ -397,13 +397,13 @@ psi_n_bins: 10
 
 ### Characteristic Stability Index
 csi: False
-csi_bin_types: fixed
+csi_bin_type: fixed
 csi_n_bins: 10
 # csi
   # not required, default False, type: boolean
   # valid values: True, False
   # meaning: True => generate csi for all features in all pairs of datasets
-# csi_bin_types
+# csi_bin_type
   # not required, default 'fixed', type: string
   # valid values: 'fixed', 'quantiles'
   # meaning: when to use evenly spaced bins or quantiles when calculating csi
@@ -423,13 +423,13 @@ vif: False
 
 ### Weight of Evidence & Information Value
 woe_iv: False
-woe_bin_types: quantiles
+woe_bin_type: quantiles
 woe_n_bins: 10
 # woe_iv
   # not required, default False, type: boolean
   # valid values: True, False
   # meaning: True => generate Weight of Evidence and Information Value for all features in all datasets
-# woe_bin_types
+# woe_bin_type
   # not required, default 'quantiles', type: string
   # valid values: 'fixed', 'quantiles'
   # meaning: when to use evenly spaced bins or quantiles when calculating woe and iv

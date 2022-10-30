@@ -3,11 +3,9 @@ import xgboost as xgb
 from sklearn import ensemble, tree, neural_network, neighbors, linear_model, cluster, base
 from sklearn.utils import shuffle
 from sklearn.model_selection import ParameterGrid, cross_val_score, GridSearchCV, \
-    PredefinedSplit, StratifiedKFold
-from sklearn.metrics import make_scorer, roc_curve, precision_recall_curve
+    PredefinedSplit
+from sklearn.metrics import make_scorer
 from sklearn.linear_model import LogisticRegression
-from sklearn.isotonic import IsotonicRegression
-from sklearn.calibration import calibration_curve
 import numpy as np
 from pathlib import Path
 import yaml, pickle, os, time, random
@@ -23,6 +21,7 @@ import logging
 import matplotlib.pyplot as plt
 from model_evaluate import ModelEvaluate, metric_score
 from model_explain import ModelExplain
+from model_calibrate import ModelCalibrate
 
 
 
@@ -131,17 +130,17 @@ class Experiment():
         self.shap_sample = self.config.get("shap_sample")
         # Population Stability Index
         self.psi = self.config.get("psi", False)
-        self.psi_bin_types = self.config.get("psi_bin_types", "fixed")
+        self.psi_bin_type = self.config.get("psi_bin_type", "fixed")
         self.psi_n_bins = self.config.get("psi_n_bins", 10)
         # Characteristic Stability Index
         self.csi = self.config.get("csi", False)
-        self.csi_bin_types = self.config.get("csi_bin_types", "fixed")
+        self.csi_bin_type = self.config.get("csi_bin_type", "fixed")
         self.csi_n_bins = self.config.get("csi_n_bins", 10)
         # Variance Inflation Factor
         self.vif = self.config.get("vif", False)
         # WOE/IV
         self.woe_iv = self.config.get("woe_iv", False)
-        self.woe_bin_types = self.config.get("woe_bin_types", "quantiles")
+        self.woe_bin_type = self.config.get("woe_bin_type", "quantiles")
         self.woe_n_bins = self.config.get("woe_n_bins", 10)
         # Correlation
         self.correlation = self.config.get("correlation", False)
@@ -156,7 +155,6 @@ class Experiment():
         self.data = {} # where data will be stored
         self.aux_data = {} # where auxiliary fields will be stored
         self.model = None
-        self.plot_context = 'seaborn-darkgrid' # Set plot context
         
         # specific order for dataset_names (for appropriate early stopping if enabled)
         all_names = set(self.data_file_patterns)
@@ -207,8 +205,8 @@ class Experiment():
             'cross_validation', 'cv_folds', 'tuning_algorithm',
             'grid_search_n_jobs',  'tuning_iterations', 'tuning_parameters',
             'permutation_importance', 'perm_imp_metrics', 'perm_imp_n_repeats',
-            'shap', 'shap_sample', 'psi', 'psi_bin_types', 'psi_n_bins', 'csi',
-            'csi_bin_types', 'csi_n_bins', 'vif', 'woe_iv', 'woe_bin_types',
+            'shap', 'shap_sample', 'psi', 'psi_bin_type', 'psi_n_bins', 'csi',
+            'csi_bin_type', 'csi_n_bins', 'vif', 'woe_iv', 'woe_bin_type',
             'woe_n_bins', 'correlation', 'corr_max_features', 'model_calibration',
             'calibration_type', 'calibration_train_dataset_name'
         }
@@ -409,10 +407,10 @@ class Experiment():
             except Exception as e:
                 raise ConfigError(f"shap_sample exception converting to int: {e}")
 
-        # check psi_bin_types, csi_bin_types, and woe_bin_types (no key, None, 'fixed' or 'quantiles')
-        for feature in {'psi_bin_types', 'csi_bin_types', 'woe_bin_types'}:
-            bin_types = self.config.get(feature)
-            if bin_types not in {None, 'fixed', 'quantiles'}:
+        # check psi_bin_type, csi_bin_type, and woe_bin_type (no key, None, 'fixed' or 'quantiles')
+        for feature in {'psi_bin_type', 'csi_bin_type', 'woe_bin_type'}:
+            bin_type = self.config.get(feature)
+            if bin_type not in {None, 'fixed', 'quantiles'}:
                 msg = f"if {feature} is present, it must be 'fixed', 'quantiles', or empty"
                 raise ConfigError(msg)
 
@@ -486,7 +484,8 @@ class Experiment():
         if self.save_scores:
             self.gen_scores()
         if self.model_calibration:
-            self.calibrate(calibration_type=self.calibration_type, bin_types='uniform', n_bins=5)
+            self.calibrate(calibration_type=self.calibration_type)
+            
 
     def setup(self):
         """
@@ -857,7 +856,7 @@ class Experiment():
         # make output directory
         self.performance_dir.mkdir(exist_ok=True)
 
-        # Instantiate ModelEvaluate class
+        # Instantiate ModelEvaluate object
         datasets = [(self.data[n]['X'], self.data[n]['y'], n) for n in self.dataset_names] 
         self.model_eval = ModelEvaluate(self.model, datasets, self.performance_dir, \
             self.aux_fields, self.logger)
@@ -872,7 +871,7 @@ class Experiment():
         and shap values.
         """
 
-        # Instantiate ModelExplain class
+        # Instantiate ModelExplain object
         datasets = [(self.data[n]['X'], self.data[n]['y'], n) for n in self.dataset_names] 
         model_explain = ModelExplain(self.model, datasets, self.explain_dir, self.logger)
 
@@ -888,11 +887,11 @@ class Experiment():
 
         # Generate PSI Table
         if self.psi:
-            model_explain.gen_psi(self.psi_bin_types, self.psi_n_bins)
+            model_explain.gen_psi(self.psi_bin_type, self.psi_n_bins)
 
         # Generate CSI Table
         if self.csi:
-            model_explain.gen_csi(self.csi_bin_types, self.csi_n_bins)
+            model_explain.gen_csi(self.csi_bin_type, self.csi_n_bins)
 
         # Generate VIF Table
         if self.vif:
@@ -900,7 +899,7 @@ class Experiment():
 
         # Generate WOE and IV
         if self.woe_iv and self.binary_classification:
-            model_explain.gen_woe_iv(self.woe_bin_types, self.woe_n_bins)
+            model_explain.gen_woe_iv(self.woe_bin_type, self.woe_n_bins)
 
         # Generate Correlation Matrix and Heatmap
         if self.correlation:
@@ -922,7 +921,7 @@ class Experiment():
             df.to_csv(path, index=False)
             self.logger.info(f"Saved {dataset_name} scores to {path}")
 
-    def calibrate(self, calibration_type='logistic', bin_types='uniform', n_bins=5):
+    def calibrate(self, calibration_type='logistic', bin_type='uniform', n_bins=5):
         """
         Calibrate a binary classification model to output probability of true positive
         and generate performance metrics for the caalibrated model.
@@ -931,196 +930,28 @@ class Experiment():
         ----------
             calibration_type : {'isotonic', 'logistic'}, default = 'logistic'
                 The type of calibration model to fit
-            bin_types : {'uniform', 'quantile'}, default = 'uniform'
+            bin_type : {'uniform', 'quantile'}, default = 'uniform'
                 Strategy used to define the widths of the bins for the calibration plots
             n_bins : int > 1, default = 5
                 Number of bins to discretize the [0, 1] interval in the calibration plots
         """
 
         # Check input
-        valid_types = {'isotonic', 'logistic'}
-        assert calibration_type in valid_types, \
-            f"calibration_type must be in {valid_types}, not {calibration_type}"
         valid_types = {'uniform', 'quantile'}
-        assert bin_types in valid_types, f"bin_types must be in {valid_types}, not {bin_types}"
+        assert bin_type in valid_types, f"bin_type must be in {valid_types}, not {bin_type}"
         assert self.binary_classification, "binary_classification must be True for .calibrate()"
-
-        # TODO: add to config validation
-            # if calibration: True, then we must have datasets for both validation and test
 
         self.logger.info(f"----- Calibrating Model -----")
 
-        # make directories and close existing figures
-        comparison_dir = self.calibration_dir / 'comparison'
-        comparison_dir.mkdir(parents=True, exist_ok=True)
-        performance_dir = self.calibration_dir / 'performance'
+        # Instantiate ModelEvaluate object
+        datasets = [(self.data[n]['X'], self.data[n]['y'], n) for n in self.dataset_names] 
+        model_calibrate = ModelCalibrate(self.model, datasets, self.calibration_dir, self.logger)
         
-
-        plt.close('all')
-
         # calibrate model
-        dataset_name = self.calibration_train_dataset_name # validation
-        y_score = self.model.predict_proba(self.data[dataset_name]['X'])[:,1]
-        # y_score = y_score.reshape(-1, 1) # make into 2d array for .fit
-        y_true = self.data[dataset_name]['y']
-        calibrator = Calibrator(calibration_type)
-        calibrator.fit(y_score, y_true)
-        
-        # evaluate calibration on each dataset
-        calibrated_scores = {}
-        for dataset_name, dataset in self.data.items():
+        model_calibrate.calibrate(self.calibration_train_dataset_name, calibration_type)
 
-            y_true = dataset['y']
-            y_score = self.model.predict_proba(dataset['X'])[:,1]
-            
-            # calibrate score 
-            y_cal = calibrator.predict_proba(y_score)
-            calibrated_scores[dataset_name] = y_cal
-
-            # ---------------------------------------------------
-            # plot calibration curves (i.e. reliability diagrams)
-            # ---------------------------------------------------
-            with plt.style.context(self.plot_context):
-                fontsize = 20
-                
-                # plot uncalibrated score
-                prob_true, prob_score = calibration_curve(y_true, y_score, n_bins=n_bins, strategy=bin_types)
-                plt.figure(figsize=(20, 10))
-                plt.subplot(1, 2, 1)
-                plt.plot(prob_score, prob_true)
-                plt.plot([[0,0], [1,1]])
-                plt.title(f"Uncalibrated Curve for {dataset_name} Dataset", fontsize=fontsize)
-                plt.xlabel("Raw Score", fontsize=fontsize)
-                plt.ylabel("Probability of TP", fontsize=fontsize)
-
-                # plot calibrated score
-                prob_true, prob_cal_score = calibration_curve(y_true, y_cal, n_bins=n_bins, strategy=bin_types)
-                plt.subplot(1, 2, 2)
-                plt.plot(prob_cal_score, prob_true)
-                plt.plot([[0,0], [1,1]])
-                plt.title(f"Uncalibrated Curve for {dataset_name} Dataset", fontsize=fontsize)
-                plt.xlabel("Raw Score", fontsize=fontsize)
-                plt.ylabel("Probability of TP", fontsize=fontsize)
-                plt.savefig(f'{comparison_dir}/calibration_curves_{dataset_name}.png')
-                self.logger.info(f'Plotted Calibration Curves ({dataset_name} data)')
-            plt.close()
-
-            # ----------------------------
-            # plot performance comparisons
-            # ----------------------------
-            
-            # raw score
-            fpr, tpr, _ = roc_curve(y_true, y_score)
-            precision, recall, thresholds = precision_recall_curve(y_true, y_score)
-            
-            # calibrated score
-            fpr_cal, tpr_cal, _ = roc_curve(y_true, y_score)
-            precision_cal, recall_cal, thresholds_cal = precision_recall_curve(y_true, y_cal)
-
-            with plt.style.context(self.plot_context):
-    
-                plt.figure(figsize=(20, 5))
-                fontsize = 15
-
-                # plot ROC
-                plt.subplot(1, 4, 1)
-                plt.plot(fpr, tpr, 'g-', label="Raw")
-                plt.plot(fpr_cal, tpr_cal, 'b--', label='Calibrated')
-                plt.xlim(-0.05, 1.05)
-                plt.ylim(-0.05, 1.05)
-                plt.xlabel('FPR', fontsize=fontsize)
-                plt.ylabel('TPR', fontsize=fontsize)
-                plt.title(f'ROC', fontsize=fontsize)
-                plt.legend(loc="lower right")
-
-                # plot Pecision vs Recall
-                plt.subplot(1, 4, 2)
-                plt.plot(recall, precision, 'g-', label="Raw")
-                plt.plot(recall_cal, precision_cal, 'b--', label='Calibrated')
-                plt.xlim(-0.05, 1.05)
-                plt.ylim(-0.05, 1.05)
-                plt.xlabel('Recall', fontsize=fontsize)
-                plt.ylabel('Precision', fontsize=fontsize)
-                plt.title(f'Precision vs Recall', fontsize=fontsize)
-                plt.legend(loc="upper right")
-            
-                # plot Recall vs Score
-                plt.subplot(1, 4, 3)
-                plt.plot(thresholds, recall[:-1], 'g-', label="Raw")
-                plt.plot(thresholds_cal, recall_cal[:-1], 'b--', label='Calibrated')
-                plt.xlim(-0.05, 1.05)
-                plt.ylim(-0.05, 1.05)
-                plt.xlabel('Score', fontsize=fontsize)
-                plt.ylabel('Recall', fontsize=fontsize)
-                plt.title(f'Recall vs Score', fontsize=fontsize)
-                plt.legend(loc="upper right")
-                
-                # plot Pecision vs Score
-                plt.subplot(1, 4, 4)
-                plt.plot(thresholds, precision[:-1], 'g-', label="Raw")
-                plt.plot(thresholds_cal, precision_cal[:-1], 'b--', label='Calibrated')
-                plt.xlim(-0.05, 1.05)
-                plt.ylim(-0.05, 1.05)
-                plt.xlabel('Score', fontsize=fontsize)
-                plt.ylabel('Precision', fontsize=fontsize)
-                plt.title(f'Precision vs Score', fontsize=fontsize)
-                plt.legend(loc="lower right")
-                plt.savefig(f'{comparison_dir}/compare_{dataset_name}.png')     
-            plt.close()
-
-            # score calibration mapping
-            increment = 0.0001
-            score = np.arange(0, 1, increment)
-            score_cal = calibrator.predict_proba(score)
-            plt.plot(score, score_cal)
-            plt.xlabel("Score")
-            plt.ylabel("Calibrated Score")
-            plt.title("Raw Score to Calibrated Score Mapping")
-            plt.savefig(f'{comparison_dir}/score_mapping_{dataset_name}.png')
-            plt.close()
-            df = pd.DataFrame({"score": score, "calibrated_score": score_cal})
-            df.to_csv(comparison_dir/f"mapping_table_{dataset_name}.csv", index=False)
-
-        # Evaluate model on calibrated score and generate performance charts        
-        if self.binary_classification:
-            datasets = [(calibrated_scores[n], self.data[n]['y'], n) for n in self.dataset_names] 
-            self.model_eval = ModelEvaluate(calibrator, datasets, performance_dir, logger=self.logger)
-            self.model_eval.binary_evaluate(self.performance_increment)
-
-
-
-
-class Calibrator():
-    """Wrapper for calibration model"""
-
-    def __init__(self, calibration_type='isotonic'):
-
-        # check for invalid input
-        valid_types = {'isotonic', 'logistic'}
-        assert calibration_type in valid_types, \
-            f"calibration_type must be in {valid_types}, not {calibration_type}"
-
-        # make calibration model
-        if calibration_type == 'isotonic':
-            self.model = IsotonicRegression(y_min=0, y_max=1, out_of_bounds='clip')
-        elif calibration_type == 'logistic':
-            self.model = LogisticRegression()
-
-        self.calibration_type = calibration_type
-        
-    def fit(self, y_score, y_true):
-        if y_score.ndim == 1:
-            y_score = y_score.reshape(-1, 1) # make into 2d array for .fit
-        self.model.fit(y_score, y_true)
-
-    def predict_proba(self, y_score):
-        if y_score.ndim == 1:
-            y_score = y_score.reshape(-1, 1) # make into 2d array
-        if self.calibration_type == 'isotonic':
-           return self.model.transform(y_score)
-        elif self.calibration_type == 'logistic':
-            return self.model.predict_proba(y_score)[:,1]
-
+        # generate performance charts, tables, and metrics
+        model_calibrate.evaluate(bin_type, n_bins)
 
 
 

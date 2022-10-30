@@ -83,20 +83,14 @@ class XGBExperiment(Experiment):
 
 
 ### Next Steps
-# test explain code
 # relax required config variables
 # (M) comments
     # Returns --------, Examples --------- >>> (?)
-# (M) refactor explain code into seperate class
 # read hyperopt papers
 # read shap paper
 # Calibrate score (for binary classification)
-    # plots
-    # calibration model object
-    # isotonic vs other types (as input parameter)
-    # (M) search for optimal number of splits
-    # calibrate based on validation? (maybe use test if there is no validation)
-    # I think I'll make another folder for it
+    # calibration model object (save and load methods)
+# unit tests (pytest)
 
 
 # GCP integration
@@ -112,7 +106,6 @@ class XGBExperiment(Experiment):
     # ...
 # GCP logging class
     # ...
-# unit tests (pytest)
 # use isinstance() in more places?
 # Curriculum learning sequences
 # (M) Some sort of performance overlap analysis of two models

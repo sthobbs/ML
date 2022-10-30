@@ -144,7 +144,7 @@ class ModelEvaluate():
             self._plot_score_hist(y_true, y_score, dataset_name)
             
             # Generate Threshold vs Metrics Table
-            self._threshold_table(y_true, y_score, dataset_name, increment=increment, aux_data=X[self.aux_fields])
+            self._threshold_table(y_true, y_score, dataset_name, increment=increment)
 
             # Generate Metrics Table
             self._metrics_table(y_true, y_score, dataset_name, roc_auc, precision_recall_auc, average_precision)
@@ -308,7 +308,7 @@ class ModelEvaluate():
             self.logger.info(f'Plotted Score Histogram ({dataset_name} data)')
         plt.close()
 
-    def _threshold_table(self, y_true, y_score, dataset_name, increment=0.01, aux_data=None):
+    def _threshold_table(self, y_true, y_score, dataset_name, increment=0.01):
         """
         Evaluate model performance at various thresholds, and save results to a csv.
 
@@ -320,6 +320,11 @@ class ModelEvaluate():
 
         assert 0 < increment < 1, f'increment={increment}, it should be >0 and <=1'
         
+        # get data from auxiliary fields to create additional metrics
+        if self.aux_fields:
+            idx = [i for i, (_, _, name) in enumerate(self.datasets) if name == dataset_name][0]
+            aux_data = self.datasets[idx][0][self.aux_fields]
+            
         # initialize performance tracking table
         performance = []
 

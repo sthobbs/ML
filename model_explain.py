@@ -160,7 +160,7 @@ class ModelExplain():
             plt.close()
             # TODO?: make alpha and max_display config variables
 
-    def gen_psi(self, bin_types='fixed', n_bins=10):
+    def gen_psi(self, bin_type='fixed', n_bins=10):
         """
         Generate Population Stability Index (PSI) values between all pairs of datasets.
 
@@ -168,11 +168,11 @@ class ModelExplain():
         0.1 <= PSI < 0.2 => moderate population change
         0.2 <= PSI       => significant population change
 
-        Note: PSI is symmetric provided the bins are the same, which they are when bin_types='fixed'
+        Note: PSI is symmetric provided the bins are the same, which they are when bin_type='fixed'
         
         Parameters
         ----------
-            bin_types : str, optional
+            bin_type : str, optional
                 the method for choosing bins, either 'fixed' or 'quantiles' (default is 'fixed')
             n_bins : int, optional
                 the number of bins used to compute psi (default is 10)
@@ -181,7 +181,7 @@ class ModelExplain():
         self.logger.info(f"----- Generating PSI -----")
 
         # check for valid input
-        assert bin_types in {'fixed', 'quantiles'}, "bin_types must be in {'fixed', 'quantiles'}"
+        assert bin_type in {'fixed', 'quantiles'}, "bin_type must be in {'fixed', 'quantiles'}"
 
         # intialize output list
         psi_list = []
@@ -200,7 +200,7 @@ class ModelExplain():
                 dataset_name2 = dataset_names[j]
                 scores1 = scores_dict[dataset_name1]
                 scores2 = scores_dict[dataset_name2]
-                psi_val = self._psi_compare(scores1, scores2, bin_types=bin_types, n_bins=n_bins)
+                psi_val = self._psi_compare(scores1, scores2, bin_type=bin_type, n_bins=n_bins)
                 row = {
                     'dataset1': dataset_name1,
                     'dataset2': dataset_name2,
@@ -216,7 +216,7 @@ class ModelExplain():
         self.output_dir.mkdir(exist_ok=True)
         psi_df.to_csv(self.output_dir/'psi.csv', index=False)
 
-    def _psi_compare(self, scores1, scores2, bin_types='fixed', n_bins=10):
+    def _psi_compare(self, scores1, scores2, bin_type='fixed', n_bins=10):
         """
         Compute Population Stability Index (PSI) between two datasets.
 
@@ -226,7 +226,7 @@ class ModelExplain():
                 scores for one of the datasets
             scores2 : numpy.ndarray or pandas.core.series.Series
                 scores for the other dataset
-            bin_types : str, optional
+            bin_type : str, optional
                 the method for choosing bins, either 'fixed' or 'quantiles' (default is 'fixed')
             n_bins : int, optional
                 the number of bins used to compute psi (default is 10)
@@ -236,9 +236,9 @@ class ModelExplain():
         # get bins
         min_val = min(min(scores1), min(scores2)) # TODO? could bring this up a function for efficiency
         max_val = max(min(scores1), max(scores2))
-        if bin_types == 'fixed':
+        if bin_type == 'fixed':
             bins = [min_val + (max_val - min_val) * i / n_bins for i in range(n_bins + 1)]
-        elif bin_types == 'quantiles':
+        elif bin_type == 'quantiles':
             bins = pd.qcut(scores1, q=n_bins, retbins=True, duplicates='drop')[1]
             n_bins = len(bins) - 1 # some bins could be dropped due to duplication
         eps = 1e-6
@@ -263,15 +263,15 @@ class ModelExplain():
         psi_vals = (grp_rates['rate1'] - grp_rates['rate2']) * np.log(grp_rates['rate1'] / grp_rates['rate2'])
         return psi_vals.mean()
 
-    def gen_csi(self, bin_types='fixed', n_bins=10):
+    def gen_csi(self, bin_type='fixed', n_bins=10):
         """
         Generate Characteristic Stability Index (CSI) values for all features between all pairs of datasets.
 
-        Note: CSI is symmetric provided the bins are the same, which they are when bin_types='fixed'
+        Note: CSI is symmetric provided the bins are the same, which they are when bin_type='fixed'
         
         Parameters
         ----------
-            bin_types : str, optional
+            bin_type : str, optional
                 the method for choosing bins, either 'fixed' or 'quantiles' (default is 'fixed')
             n_bins : int, optional
                 the number of bins used to compute csi (default is 10)
@@ -280,7 +280,7 @@ class ModelExplain():
         self.logger.info(f"----- Generating CSI -----")
 
         # check for valid input
-        assert bin_types in {'fixed', 'quantiles'}, "bin_types must be in {'fixed', 'quantiles'}"
+        assert bin_type in {'fixed', 'quantiles'}, "bin_type must be in {'fixed', 'quantiles'}"
 
         # intialize output list
         csi_list = []
@@ -302,7 +302,7 @@ class ModelExplain():
                     dataset_name2 = dataset_names[j]
                     scores1 = vals_dict[dataset_name1]
                     scores2 = vals_dict[dataset_name2]
-                    csi_val = self._psi_compare(scores1, scores2, bin_types=bin_types, n_bins=n_bins)
+                    csi_val = self._psi_compare(scores1, scores2, bin_type=bin_type, n_bins=n_bins)
                     row = {
                         'dataset1': dataset_name1,
                         'dataset2': dataset_name2,
@@ -353,7 +353,7 @@ class ModelExplain():
             df["vif"] = [variance_inflation_factor(X.values, i) for i in range(len(features))]
             df.to_csv(vif_dir/f'vif_{dataset_name}.csv', index=False)
 
-    def gen_woe_iv(self, bin_types='quantiles', n_bins=10):
+    def gen_woe_iv(self, bin_type='quantiles', n_bins=10):
         """
         Generate Weight of Evidence and Information Value tables for each dataset.
 
@@ -367,7 +367,7 @@ class ModelExplain():
 
         Parameters
         ----------
-            bin_types : str, optional
+            bin_type : str, optional
                 the method for choosing bins, either 'fixed' or 'quantiles' (default is 'quantiles')
             n_bins : int, optional
                 the number of bins used to compute woe and iv (default is 10)
@@ -397,11 +397,11 @@ class ModelExplain():
                 values = X[feature]
 
                 # get bins
-                if bin_types == 'fixed':
+                if bin_type == 'fixed':
                     min_val = min(values)
                     max_val = max(values)
                     bins = [min_val + (max_val - min_val) * i / n_bins for i in range(n_bins + 1)]
-                elif bin_types == 'quantiles':
+                elif bin_type == 'quantiles':
                     bins = pd.qcut(values, q=n_bins, retbins=True, duplicates='drop')[1]
                 eps = 1e-6
                 bins[0] -= -eps # add buffer to include points right at the edge.
