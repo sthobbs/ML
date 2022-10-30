@@ -953,6 +953,9 @@ class Experiment():
         # generate performance charts, tables, and metrics
         model_calibrate.evaluate(bin_type, n_bins)
 
+        # save model calibration object
+        model_calibrate.save_model()
+
 
 
 

@@ -79,6 +79,13 @@ class ModelCalibrate():
         self.calibrator = Calibrator(calibration_type)
         self.calibrator.fit(y_score, y_true)
 
+    def save_model(self):
+        """Save calibration model object to file."""
+
+        model_dir = self.output_dir / 'model'
+        model_dir.mkdir(parents=True, exist_ok=True)
+        output_path = model_dir/'calibration_model.pkl'
+        self.calibrator.save_model(output_path)
 
     def evaluate(self, bin_type='uniform', n_bins=5, increment=0.01):
         """
@@ -333,4 +340,10 @@ class Calibrator():
         elif self.calibration_type == 'logistic':
             return self.model.predict_proba(y_score)[:,1]
 
+    def save_model(self, output_path):
+        """Save calibration model object to file."""
+
+        with open(output_path, 'wb') as file:
+            pickle.dump(self.model, file)
+        # TODO (?): also save pmml
 
