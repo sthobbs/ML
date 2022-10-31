@@ -6,16 +6,21 @@ from sklearn.metrics import roc_curve, precision_recall_curve
 from sklearn.linear_model import LogisticRegression
 from sklearn.isotonic import IsotonicRegression
 from sklearn.calibration import calibration_curve
+from sklearn.base import BaseEstimator
 import numpy as np
 import pandas as pd
 import pickle
+from typing import List, Optional
 from model_evaluate import ModelEvaluate
 
 
 class ModelCalibrate():
     """..."""
 
-    def __init__(self, model, datasets, output_dir, logger=None):
+    def __init__(self, model: BaseEstimator,
+                       datasets: List[tuple],
+                       output_dir: str,
+                       logger: Optional[logging.Logger] = None) -> None:
         """
         Parameters
         ----------
@@ -55,7 +60,7 @@ class ModelCalibrate():
             ch.setFormatter(formatter)
             self.logger.addHandler(ch)
 
-    def calibrate(self, train_dataset_name, calibration_type='logistic'):
+    def calibrate(self, train_dataset_name: str, calibration_type: str = 'logistic') -> None:
         """
         Calibrate a binary classification model to output probability of true positive.
         
@@ -79,7 +84,7 @@ class ModelCalibrate():
         self.calibrator = Calibrator(calibration_type)
         self.calibrator.fit(y_score, y_true)
 
-    def save_model(self):
+    def save_model(self) -> None:
         """Save calibration model object to file."""
 
         model_dir = self.output_dir / 'model'
@@ -87,7 +92,7 @@ class ModelCalibrate():
         output_path = model_dir/'calibration_model.pkl'
         self.calibrator.save_model(output_path)
 
-    def evaluate(self, bin_type='uniform', n_bins=5, increment=0.01):
+    def evaluate(self, bin_type: str = 'uniform', n_bins: int = 5, increment: float = 0.01) -> None:
         """
         Generate performance metrics for the caalibrated model.
         
@@ -142,17 +147,18 @@ class ModelCalibrate():
         model_eval.binary_evaluate(increment)
 
 
-    def _plot_calibration_curve(self, y_true, y_score, y_cal, dataset_name, output_path, bin_type='uniform', n_bins=5):
+    def _plot_calibration_curve(self, y_true, y_score, y_cal, dataset_name: str, \
+        output_path: str, bin_type: str = 'uniform', n_bins: int = 5) -> None:
         """
         plot calibration curve (i.e. reliability diagram).
         
         Parameters
         ----------
-            y_true : array-like
+            y_true : array-like of shape (n_sample,)
                 ground truth labels.
-            y_score : array-like
+            y_score : array-like of shape (n_sample,)
                 model scores.
-            y_score : array-like
+            y_score : array-like of shape (n_sample,)
                 model scores after passing through a calibration function.
             dataset_name : str
                 the name of the dataset.
@@ -197,17 +203,17 @@ class ModelCalibrate():
         
         plt.close()
 
-    def _plot_comparisons(self, y_true, y_score, y_cal, output_path):
+    def _plot_comparisons(self, y_true, y_score, y_cal, output_path: str) -> None:
         """
         plot performance comparison charts.
         
         Parameters
         ----------
-            y_true : array-like
+            y_true : array-like of shape (n_sample,)
                 ground truth labels.
-            y_score : array-like
+            y_score : array-like of shape (n_sample,)
                 model scores.
-            y_score : array-like
+            y_score : array-like of shape (n_sample,)
                 model scores after passing through a calibration function.
             output_path : str
                 string path to location where output plot will be written.
@@ -271,7 +277,7 @@ class ModelCalibrate():
             plt.savefig(output_path)     
         plt.close()
 
-    def _calibration_mapping(self, fig_path, table_path, increment=0.0001):
+    def _calibration_mapping(self, fig_path: str, table_path: str, increment: float = 0.0001) -> None:
         """
         plot performance comparison charts.
         
@@ -302,7 +308,7 @@ class ModelCalibrate():
 class Calibrator():
     """Wrapper for calibration model"""
 
-    def __init__(self, calibration_type='isotonic'):
+    def __init__(self, calibration_type: str = 'isotonic') -> None:
         """
         Parameters
         ----------
@@ -323,15 +329,31 @@ class Calibrator():
 
         self.calibration_type = calibration_type
         
-    def fit(self, y_score, y_true):
-        """Fit calibration model."""
+    def fit(self, y_score, y_true) -> None:
+        """
+        Fit calibration model.
+
+        Parameters
+        ----------
+            y_score : array-like of shape (n_sample,)
+                model scores.
+            y_true : array-like of shape (n_sample,)
+                ground truth labels.
+        """
 
         if y_score.ndim == 1:
             y_score = y_score.reshape(-1, 1) # make into 2d array for .fit
         self.model.fit(y_score, y_true)
 
     def predict_proba(self, y_score):
-        """Calibrate scores."""
+        """
+        Calibrate scores.
+        
+        Parameters
+        ----------
+            y_score : array-like of shape (n_sample,)
+                model scores.
+        """
 
         if y_score.ndim == 1:
             y_score = y_score.reshape(-1, 1) # make into 2d array
@@ -340,8 +362,15 @@ class Calibrator():
         elif self.calibration_type == 'logistic':
             return self.model.predict_proba(y_score)[:,1]
 
-    def save_model(self, output_path):
-        """Save calibration model object to file."""
+    def save_model(self, output_path: str) -> None:
+        """
+        Save calibration model object to file.
+
+        Parameters
+        ----------
+            output_path : str
+                string path to location where calibration model will be written.
+        """
 
         with open(output_path, 'wb') as file:
             pickle.dump(self.model, file)

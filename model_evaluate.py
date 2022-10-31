@@ -3,6 +3,7 @@ import pandas as pd
 from sklearn.metrics import average_precision_score, precision_recall_curve, \
     auc, roc_curve, det_curve, DetCurveDisplay, brier_score_loss, log_loss, \
     roc_auc_score
+from sklearn.base import BaseEstimator
 import xgboost as xgb
 import matplotlib.pyplot as plt
 import numpy as np
@@ -11,10 +12,22 @@ import seaborn as sns
 from tqdm import tqdm
 from scipy.stats import ks_2samp
 import logging
+from typing import Optional, List
 
 
-def metric_score(y_true, y_score, metric):
-    """Evaluate model scores for a given performance metric."""
+def metric_score(y_true, y_score, metric: str) -> float:
+    """
+    Evaluate model scores for a given performance metric.
+    
+    Parameters
+    ----------
+        y_true : array-like of shape (n_sample,)
+            ground truth labels.
+        y_score : array-like of shape (n_sample,)
+            model scores.
+        metric: {'average_precision', 'aucpr', 'auc', 'log_loss', 'brier_loss'}
+            Metric used to measure performance.
+    """
 
     valid_metrics = {'average_precision', 'aucpr', 'auc', 'log_loss', 'brier_loss'}
     assert metric in valid_metrics, "invalid metric"
@@ -50,7 +63,11 @@ class ModelEvaluate():
        github.com/sthobbs
     """
 
-    def __init__(self, model=None, datasets=None, output_dir=None, aux_fields=None, logger=None):
+    def __init__(self, model: Optional[BaseEstimator] = None,
+                       datasets: Optional[List[tuple]] = None,
+                       output_dir: Optional[str] = None,
+                       aux_fields: Optional[list] = None,
+                       logger: Optional[logging.Logger] = None) -> None:
         """
         Parameters
         ----------
@@ -100,7 +117,7 @@ class ModelEvaluate():
             ch.setFormatter(formatter)
             self.logger.addHandler(ch)
 
-    def binary_evaluate(self, increment=0.01):
+    def binary_evaluate(self, increment: float = 0.01) -> None:
         """
         Generate plots and tables for a binary classification model.
 
@@ -108,7 +125,7 @@ class ModelEvaluate():
 
         Parameters
         ----------
-            increment :
+            increment : float
                 threshold increment to use when checking performance on a sequence of thresholds
         """
 
@@ -154,7 +171,7 @@ class ModelEvaluate():
 
         plt.close('all')
 
-    def xgb_evaluate(self, dataset_names=None):
+    def xgb_evaluate(self, dataset_names: Optional[List[str]] = None) -> None:
         """
         Generate plots and tables specific to XGBoost models.
 
@@ -223,8 +240,24 @@ class ModelEvaluate():
         df.to_csv(f'{self.tables_subdir}/optimal_n_estimators.csv')
         self.logger.info(f'Generated optimal n_estimators table')
 
-    def _plot_precision_recall_threshold(self, precision, recall, thresholds, dataset_name):
-        """Plot the precision and recall against the threshold."""
+    def _plot_precision_recall_threshold(self, precision: np.ndarray,
+                                               recall: np.ndarray,
+                                               thresholds: np.ndarray,
+                                               dataset_name: str) -> None:
+        """
+        Plot the precision and recall against the threshold.
+
+        Parameters
+        ----------
+            precision : numpy.ndarray
+                model precision at various thresholds
+            recall : numpy.ndarray
+                model recall at various thresholds
+            thresholds : numpy.ndarray
+                various thresholds
+            dataset_name : str
+                name of dataset to generate plot of
+        """
 
         plt.figure()
         with plt.style.context(self.plot_context):
@@ -239,8 +272,27 @@ class ModelEvaluate():
             self.logger.info(f'Plotted Precision/Recall vs Threshold ({dataset_name} data)')
         plt.close()
 
-    def _plot_precision_recall(self, precision, recall, dataset_name, average_precision, precision_recall_auc):
-        """Plot the precision against the recall."""
+    def _plot_precision_recall(self, precision: np.ndarray,
+                                     recall: np.ndarray,
+                                     dataset_name: str,
+                                     average_precision: float,
+                                     precision_recall_auc: float) -> None:
+        """
+        Plot the precision against the recall.
+        
+        Parameters
+        ----------
+            precision : numpy.ndarray
+                model precision at various thresholds
+            recall : numpy.ndarray
+                model recall at various thresholds
+            dataset_name : str
+                name of dataset to generate plot of
+            average_precision : float
+                average precision of the model
+            precision_recall_auc : float
+                area under the PR curve of the model
+        """
 
         plt.figure()
         with plt.style.context(self.plot_context):
@@ -260,8 +312,21 @@ class ModelEvaluate():
             self.logger.info(f'Plotted Precision vs Recall ({dataset_name} data)')
         plt.close()
 
-    def _plot_roc(self, fpr, tpr, dataset_name, roc_auc):
-        """Plot ROC curve."""
+    def _plot_roc(self, fpr: np.ndarray, tpr: np.ndarray, dataset_name: str, roc_auc: float) -> None:
+        """
+        Plot ROC curve.
+        
+        Parameters
+        ----------
+            fpr : numpy.ndarray
+                false positive rate at various thresholds
+            tpr : numpy.ndarray
+                true positive rate at various thresholds
+            dataset_name : str
+                name of dataset to generate plot of
+            roc_auc : float
+                area under the ROC curve of the model
+        """
 
         plt.figure()
         with plt.style.context(self.plot_context):
@@ -281,8 +346,19 @@ class ModelEvaluate():
             self.logger.info(f'Plotted ROC ({dataset_name} data)')
         plt.close()
 
-    def _plot_det(self, fpr, fnr, dataset_name):
-        """Plot ROC curve."""
+    def _plot_det(self, fpr: np.ndarray, fnr: np.ndarray, dataset_name: str) -> None:
+        """
+        Plot ROC curve.
+        
+        Parameters
+        ----------
+            fpr : numpy.ndarray
+                false positive rate at various thresholds
+            fnr : numpy.ndarray
+                false negative rate at various thresholds
+            dataset_name : str
+                name of dataset to generate plot of
+        """
 
         plt.figure()
         with plt.style.context(self.plot_context):
@@ -292,8 +368,19 @@ class ModelEvaluate():
             self.logger.info(f'Plotted Detection Error Tradeoff ({dataset_name} data)')
         plt.close()
 
-    def _plot_score_hist(self, y_true, y_score, dataset_name):
-        """Plot score histogram vs class label."""
+    def _plot_score_hist(self, y_true, y_score, dataset_name: str) -> None:
+        """
+        Plot score histogram vs class label.
+        
+        Parameters
+        ----------
+            y_true : array-like of shape (n_sample,)
+                ground truth labels.
+            y_score : array-like of shape (n_sample,)
+                model scores.
+            dataset_name : str
+                name of dataset to generate plot of
+        """
 
         plt.figure()
         with plt.style.context(self.plot_context):
@@ -308,13 +395,19 @@ class ModelEvaluate():
             self.logger.info(f'Plotted Score Histogram ({dataset_name} data)')
         plt.close()
 
-    def _threshold_table(self, y_true, y_score, dataset_name, increment=0.01):
+    def _threshold_table(self, y_true, y_score, dataset_name: str, increment: float = 0.01) -> None:
         """
         Evaluate model performance at various thresholds, and save results to a csv.
 
         Parameters
         ----------
-            increment :
+            y_true : array-like of shape (n_sample,)
+                ground truth labels.
+            y_score : array-like of shape (n_sample,)
+                model scores.
+            dataset_name : str
+                name of dataset to generate plot of
+            increment : float, default = 0.01
                 difference between consecutive threshold values to evaluate performance at 
         """
 
@@ -389,8 +482,30 @@ class ModelEvaluate():
         performance.to_csv(f'{self.tables_subdir}/threshold_vs_metrics_{dataset_name}.csv', index=False)
         self.logger.info(f'Generated threshold performance table ({dataset_name} data)')
 
-    def _metrics_table(self, y_true, y_score, dataset_name, roc_auc, precision_recall_auc, average_precision):
-        """Generate table of metrics for binary classification model evaluation."""
+    def _metrics_table(self, y_true,
+                             y_score,
+                             dataset_name: str,
+                             roc_auc: float,
+                             precision_recall_auc:
+                             float, average_precision: float) -> None:
+        """
+        Generate table of metrics for binary classification model evaluation.
+        
+        Parameters
+        ----------
+            y_true : array-like of shape (n_sample,)
+                ground truth labels.
+            y_score : array-like of shape (n_sample,)
+                model scores.
+            dataset_name : str
+                name of dataset to generate plot of
+            roc_auc : float
+                area under the ROC curve of the model 
+            precision_recall_auc : float
+                area under the PR curve of the mode
+            average_precision : float
+                average precision of the model  
+        """
 
         log_loss_ = log_loss(y_true, y_score) # cross entropy
         brier_score = brier_score_loss(y_true, y_score)
@@ -405,7 +520,7 @@ class ModelEvaluate():
         df.to_csv(f'{self.tables_subdir}/metrics_{dataset_name}.csv', index=False)
         self.logger.info(f'Generated metrics table ({dataset_name} data)')
 
-    def ks_statistic(self):
+    def ks_statistic(self) -> None:
         """Generate Kolmogorov-Smirnov (KS) Statistic."""
 
         # intialize output table

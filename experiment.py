@@ -1,6 +1,7 @@
 
 import xgboost as xgb
-from sklearn import ensemble, tree, neural_network, neighbors, linear_model, cluster, base
+from sklearn import ensemble, tree, neural_network, neighbors, linear_model, cluster
+from sklearn.base import BaseEstimator
 from sklearn.utils import shuffle
 from sklearn.model_selection import ParameterGrid, cross_val_score, GridSearchCV, \
     PredefinedSplit
@@ -19,6 +20,7 @@ from dask.diagnostics import ProgressBar
 ProgressBar().register()
 import logging
 import matplotlib.pyplot as plt
+from typing import Union, Optional, Dict
 from model_evaluate import ModelEvaluate, metric_score
 from model_explain import ModelExplain
 from model_calibrate import ModelCalibrate
@@ -40,7 +42,7 @@ class Experiment():
        github.com/sthobbs
     """
     
-    def __init__(self, config_path):
+    def __init__(self, config_path: str) -> None:
         """
         Constructs attributes from a config file
 
@@ -187,7 +189,7 @@ class Experiment():
         fh.setFormatter(formatter)
         self.logger.addHandler(fh)
 
-    def validate_config(self):
+    def validate_config(self) -> None:
         """Ensure that the config file is valid."""
 
         # specify which keys and values are required/valid
@@ -464,7 +466,7 @@ class Experiment():
             if self.config.get(k) not in {True, False, None}:
                 raise ConfigError(f"if {k} is present, it must be True, False, or empty")
 
-    def run(self):
+    def run(self) -> None:
         """Run a complete experiment including (depending on config):
             1) data loading
             2) hyperparameter tuning (grid search, random search, tpe, or atpe)
@@ -487,7 +489,7 @@ class Experiment():
             self.calibrate(calibration_type=self.calibration_type)
             
 
-    def setup(self):
+    def setup(self) -> None:
         """
         Setup experiment by loading data, making directories for
         experiment output, and saving the config file.
@@ -504,14 +506,14 @@ class Experiment():
         # load data
         self.load_data()
 
-    def load_model(self, model_obj=None, path=None):
+    def load_model(self, model_obj: Optional[BaseEstimator] = None, path: Optional[str] = None) -> None:
         """
         Loads a model object from a parameter or file path, or instantiates a 
         new model object.
 
         Parameters
         ----------
-            model_obj : str, optional
+            model_obj : optional
                 scikit-learn model object with a .predict_proba() method
                 (default is None)
             path : str, optional
@@ -526,7 +528,7 @@ class Experiment():
                         " model_obj is being passed into .load_model()")
                 self.logger.error(msg)
                 raise ConfigError(msg)
-            if not isinstance(model_obj, base.BaseEstimator):
+            if not isinstance(model_obj, BaseEstimator):
                 msg = f"model_obj should be a scikit-learn model object, not {type(model_obj)}"
                 self.logger.error(msg)
                 raise TypeError(msg)
@@ -562,7 +564,7 @@ class Experiment():
                 'IsolationForest': ensemble.IsolationForest()
             }[self.model_type]
 
-    def _load_model_from_path(self, path):
+    def _load_model_from_path(self, path: str) -> None:
         """
         Loads a model object from a file path.
 
@@ -581,7 +583,7 @@ class Experiment():
             self.logger.error(f"error loading model from path: {path}")
             raise
 
-    def load_data(self):
+    def load_data(self) -> None:
         """
         Loads in data, including training, validation, and testing data,
         and possibly other datasets as specified in the config.
@@ -613,7 +615,7 @@ class Experiment():
             # store aux data (in separate object so that **self.data[name] can be used) 
             self.aux_data[name] = df[self.aux_fields]
 
-    def train(self, **kwargs):
+    def train(self, **kwargs) -> None:
         """
         tune hyperparameters, then train a final model with the tuned
         hyperparmeters.
@@ -626,7 +628,7 @@ class Experiment():
         self.logger.info(f"----- Training Final Model -----")
         self.model.fit(**self.data['train'], **kwargs)
 
-    def tune_hyperparameters(self):
+    def tune_hyperparameters(self) -> None:
         """
         Tune hyperparameters with either grid search, random search, tpe,
         or atpe.
@@ -656,7 +658,7 @@ class Experiment():
         # set model to use best paramaters 
         self.model.set_params(**best_params)
 
-    def _grid_search_unparallelized(self):
+    def _grid_search_unparallelized(self) -> Dict[str, Union[str, int, float]]:
         """Tune hyperparameters with grid search."""
 
         # Grid search all possible combinations
@@ -675,7 +677,7 @@ class Experiment():
         best_params = param_dict_list[best(scores)]
         return best_params
 
-    def _grid_search(self):
+    def _grid_search(self) -> Dict[str, Union[str, int, float]]:
         """Tune hyperparameters with grid search (in parallel)."""
 
         # make evaluation scorer
@@ -727,7 +729,7 @@ class Experiment():
         best_params = param_dict_list[best(scores)]
         return best_params
 
-    def _hyperopt_search(self):
+    def _hyperopt_search(self) -> Dict[str, Union[str, int, float]]:
         """Tune hyperparameters with either random search, tpe, or atpe."""
         
         # define optimization function
@@ -795,7 +797,7 @@ class Experiment():
 
         return best_params
 
-    def _train_eval_iteration(self, param_dict):
+    def _train_eval_iteration(self, param_dict: Dict[str, Union[str, int, float]]) -> float:
         """
         Run one iteration of training and evaluating a model for
         hyperparameter tuning.
@@ -839,7 +841,7 @@ class Experiment():
             file.write(msg)
         return score
 
-    def save_model(self):
+    def save_model(self) -> None:
         """Save model object to file."""
 
         self.model_dir.mkdir(exist_ok=True)
@@ -847,7 +849,7 @@ class Experiment():
             pickle.dump(self.model, file)
         # TODO (?): also save pmml
 
-    def evaluate(self, increment=0.01):
+    def evaluate(self, increment: float = 0.01) -> None:
         """Evaluate model and generate performance charts."""
         
         if not self.supervised:
@@ -865,7 +867,7 @@ class Experiment():
         if self.binary_classification:
             self.model_eval.binary_evaluate(increment)
 
-    def explain(self):
+    def explain(self) -> None:
         """
         Generate model explanitory charts including feature importance
         and shap values.
@@ -908,7 +910,7 @@ class Experiment():
         if isinstance(self.model, xgb.XGBModel):
             model_explain.xgb_explain()
 
-    def gen_scores(self):
+    def gen_scores(self) -> None:
         """Save model scores for each row"""
 
         self.logger.info(f"----- Generating Scores -----")
@@ -921,7 +923,7 @@ class Experiment():
             df.to_csv(path, index=False)
             self.logger.info(f"Saved {dataset_name} scores to {path}")
 
-    def calibrate(self, calibration_type='logistic', bin_type='uniform', n_bins=5):
+    def calibrate(self, calibration_type: str = 'logistic', bin_type: str = 'uniform', n_bins: int = 5) -> None:
         """
         Calibrate a binary classification model to output probability of true positive
         and generate performance metrics for the caalibrated model.

@@ -3,6 +3,7 @@
 from pathlib import Path
 import logging
 from sklearn.inspection import permutation_importance
+from sklearn.base import BaseEstimator
 import shap
 from statsmodels.stats.outliers_influence import variance_inflation_factor
 import seaborn as sns
@@ -11,6 +12,7 @@ import numpy as np
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 import xgboost as xgb
+from typing import Optional, List, Union
 
 
 
@@ -24,7 +26,10 @@ class ModelExplain():
        github.com/sthobbs
     """
 
-    def __init__(self, model=None, datasets=None, output_dir=None, logger=None):
+    def __init__(self, model: Optional[BaseEstimator] = None,
+                       datasets: Optional[List[tuple]] = None,
+                       output_dir: Optional[str] = None,
+                       logger: Optional[logging.Logger] = None) -> None:
         """
         Parameters
         ----------
@@ -65,7 +70,9 @@ class ModelExplain():
             ch.setFormatter(formatter)
             self.logger.addHandler(ch)
 
-    def gen_permutation_importance(self, n_repeats=10, metrics='neg_log_loss', seed=1):
+    def gen_permutation_importance(self, n_repeats: int = 10,
+                                         metrics: str = 'neg_log_loss',
+                                         seed: int = 1) -> None:
         """
         Generate permutation feature importance tables.
         
@@ -101,7 +108,7 @@ class ModelExplain():
             df.sort_values(f"{metrics[0]}_mean", ascending=False, inplace=True)
             df.to_csv(f'{importance_dir}/permutation_importance_{dataset_name}.csv')
 
-    def plot_shap(self, shap_sample=None):
+    def plot_shap(self, shap_sample: Optional[int] = None) -> None:
         """Generate model explanitory charts involving shap values."""
 
         plt.close('all')
@@ -160,7 +167,7 @@ class ModelExplain():
             plt.close()
             # TODO?: make alpha and max_display config variables
 
-    def gen_psi(self, bin_type='fixed', n_bins=10):
+    def gen_psi(self, bin_type: str = 'fixed', n_bins: int = 10) -> None:
         """
         Generate Population Stability Index (PSI) values between all pairs of datasets.
 
@@ -216,7 +223,10 @@ class ModelExplain():
         self.output_dir.mkdir(exist_ok=True)
         psi_df.to_csv(self.output_dir/'psi.csv', index=False)
 
-    def _psi_compare(self, scores1, scores2, bin_type='fixed', n_bins=10):
+    def _psi_compare(self, scores1: Union[np.ndarray, pd.core.series.Series],
+                           scores2: Union[np.ndarray, pd.core.series.Series],
+                           bin_type: str = 'fixed',
+                           n_bins: int = 10) -> float:
         """
         Compute Population Stability Index (PSI) between two datasets.
 
@@ -263,7 +273,7 @@ class ModelExplain():
         psi_vals = (grp_rates['rate1'] - grp_rates['rate2']) * np.log(grp_rates['rate1'] / grp_rates['rate2'])
         return psi_vals.mean()
 
-    def gen_csi(self, bin_type='fixed', n_bins=10):
+    def gen_csi(self, bin_type: str = 'fixed', n_bins: int = 10) -> None:
         """
         Generate Characteristic Stability Index (CSI) values for all features between all pairs of datasets.
 
@@ -332,7 +342,7 @@ class ModelExplain():
         csi_df = csi_df.sort_values("feature").set_index("feature")
         csi_df.to_csv(self.output_dir/'csi_wide.csv')
 
-    def gen_vif(self):
+    def gen_vif(self) -> None:
         """
         Generate Variance Inflation Factor (VIF) tables for each dataset.
 
@@ -353,7 +363,7 @@ class ModelExplain():
             df["vif"] = [variance_inflation_factor(X.values, i) for i in range(len(features))]
             df.to_csv(vif_dir/f'vif_{dataset_name}.csv', index=False)
 
-    def gen_woe_iv(self, bin_type='quantiles', n_bins=10):
+    def gen_woe_iv(self, bin_type: str = 'quantiles', n_bins: int = 10) -> None:
         """
         Generate Weight of Evidence and Information Value tables for each dataset.
 
@@ -449,7 +459,7 @@ class ModelExplain():
             iv_df.index.name = 'index'
             iv_df.to_csv(woe_dir/f'iv_{dataset_name}.csv')
 
-    def gen_corr(self, max_features=100):
+    def gen_corr(self, max_features: int = 100) -> None:
         """
         Generate correlation matrix and heatmap for each dataset.
 
@@ -490,13 +500,15 @@ class ModelExplain():
             self.plot_corr_heatmap(corr, corr_dir/f'heatmap_{dataset_name}.png', data_type='corr')
 
 
-    def plot_corr_heatmap(self, data, output_path, data_type='corr'):
+    def plot_corr_heatmap(self, data: pd.core.frame.DataFrame,
+                                output_path: str,
+                                data_type: str = 'corr') -> None:
         """
         Plot correlation heat map.
 
         Parameters
         ----------
-            data : dataframe
+            data : pandas.core.frame.DataFrame
                 input data, either raw data, or correlation matrix
             output_path : str
                 the location where the plot should be written.
@@ -605,7 +617,7 @@ class ModelExplain():
             plt.savefig(output_path, bbox_inches='tight')
             plt.close()
 
-    def xgb_explain(self):
+    def xgb_explain(self) -> None:
         """Generate model explanitory charts specific to XGBoost models."""
 
         assert isinstance(self.model, xgb.XGBModel), f'model is type {type(self.model)}, which is not an XGBoost Model'
