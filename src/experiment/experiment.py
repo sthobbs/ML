@@ -153,9 +153,8 @@ class Experiment():
         self.calibration_train_dataset_name = self.config.get("calibration_train_dataset_name", "validation")
 
         # ------ Other -------
-        self.data = {}  # where data will be stored
-        self.aux_data = {}  # where auxiliary fields will be stored
-        self.model = None
+        self.data: Dict[str, Dict[str, Union[np.ndarray, pd.core.series.Series]]] = {}  # where data will be stored
+        self.aux_data: Dict[str, Union[np.ndarray, pd.core.series.Series]] = {}  # where auxiliary fields will be stored
 
         # specific order for dataset_names (for appropriate early stopping if enabled)
         all_names = set(self.data_file_patterns)
@@ -372,7 +371,7 @@ class Experiment():
                                f" the following keys and no others: {func_to_params[func]}.")
                         raise ConfigError(msg)
                     # check that all params have valid values
-                    param_to_datatype = {
+                    param_to_datatype: Dict[str, Union[type, tuple[type, type]]] = {
                         "options": list,
                         "low": (int, float),
                         "high": (int, float),
@@ -421,7 +420,7 @@ class Experiment():
         # check calibration_train_dataset_name (must be valid dataset name)
         if self.config.get('model_calibration') and \
                 self.config.get('calibration_train_dataset_name') not in self.config.get("data_file_patterns", []):
-            msg = ("if 'model_calibration' is True, calibration_train_dataset_name must be a named",
+            msg = ("if 'model_calibration' is True, calibration_train_dataset_name must be a named"
                    " dataset in data_file_patterns")
             raise ConfigError(msg)
 
@@ -496,7 +495,7 @@ class Experiment():
         self.logger.info(f"config copied to {self.output_dir}/config.yaml")
 
         # load model
-        if not self.model:
+        if not self.config.get('model', None):
             self.load_model()
 
         # load data
@@ -670,7 +669,7 @@ class Experiment():
             best = np.argmax
         elif self.hyperparameter_eval_metric in {'log_loss', 'brier_loss'}:
             best = np.argmin
-        best_params = param_dict_list[best(scores)]
+        best_params: Dict[str, Union[str, int, float]] = param_dict_list[best(scores)]
         return best_params
 
     def _grid_search(self) -> Dict[str, Union[str, int, float]]:
@@ -722,7 +721,7 @@ class Experiment():
             best = np.argmax
         elif metric in {'log_loss', 'brier_loss'}:
             best = np.argmin
-        best_params = param_dict_list[best(scores)]
+        best_params: Dict[str, Union[str, int, float]] = param_dict_list[best(scores)]
         return best_params
 
     def _hyperopt_search(self) -> Dict[str, Union[str, int, float]]:
@@ -776,6 +775,7 @@ class Experiment():
 
         # Run hyperparameter tuning
         trials = Trials()
+        best_params: Dict[str, Union[str, int, float]]
         best_params = fmin(fn=objective,
                            space=space,
                            algo=algo,
@@ -809,6 +809,7 @@ class Experiment():
 
         start_time = time.time()
         self.logger.info(param_dict)
+        score: float
 
         # train model
         self.model.set_params(**param_dict)

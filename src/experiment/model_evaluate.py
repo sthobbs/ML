@@ -12,7 +12,7 @@ import seaborn as sns
 from tqdm import tqdm
 from scipy.stats import ks_2samp
 import logging
-from typing import Optional, List
+from typing import Optional, List, Union
 
 
 def metric_score(y_true, y_score, metric: str) -> float:
@@ -32,26 +32,30 @@ def metric_score(y_true, y_score, metric: str) -> float:
     valid_metrics = {'average_precision', 'aucpr', 'auc', 'log_loss', 'brier_loss'}
     assert metric in valid_metrics, "invalid metric"
 
+    score: float
+
     # Average precision
     if metric == 'average_precision':
-        return average_precision_score(y_true, y_score)
+        score = average_precision_score(y_true, y_score)
 
     # Area under the precision-recall curve
     elif metric == 'aucpr':
         precision, recall, thresholds = precision_recall_curve(y_true, y_score)
-        return auc(recall, precision)
+        score = auc(recall, precision)
 
     # Area under the ROC curve
     elif metric == 'auc':
-        return roc_auc_score(y_true, y_score)
+        score = roc_auc_score(y_true, y_score)
 
     # Log loss (cross entropy)
     elif metric == 'log_loss':
-        return log_loss(y_true, y_score)
+        score = log_loss(y_true, y_score)
 
     # Brier score loss
     elif metric == 'brier_loss':
-        return brier_score_loss(y_true, y_score)
+        score = brier_score_loss(y_true, y_score)
+
+    return score
 
 
 class ModelEvaluate():
@@ -65,9 +69,12 @@ class ModelEvaluate():
 
     def __init__(self,
                  model: Optional[BaseEstimator] = None,
-                 datasets: Optional[List[tuple]] = None,
-                 output_dir: Optional[str] = None,
-                 aux_fields: Optional[list] = None,
+                 datasets: Optional[List[tuple[
+                    Union[np.ndarray, pd.core.series.Series],
+                    Union[np.ndarray, pd.core.series.Series],
+                    str]]] = None,
+                 output_dir: Optional[Union[str, Path]] = None,
+                 aux_fields: Optional[list[str]] = None,
                  logger: Optional[logging.Logger] = None) -> None:
         """
         Parameters
@@ -85,7 +92,10 @@ class ModelEvaluate():
                 logger.
         """
 
-        self.model = model
+        if model is not None:
+            self.model = model
+        if datasets is None:
+            datasets = []
         self.datasets = datasets
 
         # Make directories
@@ -105,18 +115,18 @@ class ModelEvaluate():
         self.plot_context = 'seaborn-darkgrid'
 
         # Set up logger
-        self.logger = logger
         if logger is None:
             # create logger
-            self.logger = logging.getLogger(__name__).getChild(self.__class__.__name__).getChild(str(id(self)))
-            self.logger.setLevel(logging.INFO)
+            logger = logging.getLogger(__name__).getChild(self.__class__.__name__).getChild(str(id(self)))
+            logger.setLevel(logging.INFO)
             # create formatter
             formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
             # create and add handlers for console output
             ch = logging.StreamHandler()
             ch.setLevel(logging.INFO)
             ch.setFormatter(formatter)
-            self.logger.addHandler(ch)
+            logger.addHandler(ch)
+        self.logger = logger
 
     def binary_evaluate(self, increment: float = 0.01) -> None:
         """
@@ -197,13 +207,15 @@ class ModelEvaluate():
             dataset_names = default_names
         assert len(dataset_names) == len(default_names), "len(dataset_names) doesn't match training eval_set"
         name_pairs = list(zip(dataset_names, default_names))
-        metrics = list(self.model.evals_result().get(default_names[0]).keys())  # evaluation metrics used in training (e.g. ['aucpr', 'logloss'])
-        n_estimators = len(self.model.evals_result().get(default_names[0]).get(metrics[0]))  # max n_estimators
+        evals_result = self.model.evals_result() if self.model.evals_result() else {}
+        eval_dict = evals_result.get(default_names[0], {})
+        metrics = list(eval_dict.keys())  # evaluation metrics used in training (e.g. ['aucpr', 'logloss'])
+        n_estimators = len(eval_dict.get(metrics[0], []))  # max n_estimators
         plt.figure()
         with plt.style.context(self.plot_context):
             for metric in metrics:
                 for dataset_name, default_name in name_pairs:
-                    plt.plot(range(1, n_estimators+1), self.model.evals_result().get(default_name).get(metric), label=dataset_name)
+                    plt.plot(range(1, n_estimators+1), evals_result.get(default_name, {}).get(metric), label=dataset_name)
                 plt.xlabel('n_estimators')
                 plt.ylabel(metric)
                 plt.title(f'n_estimators vs {metric}')
@@ -215,7 +227,7 @@ class ModelEvaluate():
 
         # Generate n_estimates vs training metrics tables
         for dataset_name, default_name in name_pairs:
-            df = pd.DataFrame(self.model.evals_result().get(default_name), index=range(1, n_estimators+1))
+            df = pd.DataFrame(evals_result.get(default_name), index=range(1, n_estimators+1))
             df.index.name = 'n_estimators'
             df.to_csv(f'{self.tables_subdir}/n_estimators_vs_metrics_{dataset_name}.csv')
             self.logger.info(f'Generated n_estimators vs metrics table ({dataset_name} data)')
@@ -238,7 +250,7 @@ class ModelEvaluate():
                 self.logger.warning(f"unexpected metric '{metric}', skipping it")
                 continue
             for dataset_name, default_name in name_pairs:
-                best_n_estimators = f(self.model.evals_result().get(default_name).get(metric)) + 1
+                best_n_estimators = f(evals_result.get(default_name, {}).get(metric)) + 1
                 df.at[metric, dataset_name] = best_n_estimators
         df.to_csv(f'{self.tables_subdir}/optimal_n_estimators.csv')
         self.logger.info('Generated optimal n_estimators table')
@@ -464,27 +476,27 @@ class ModelEvaluate():
             idx_lower = idx_upper
 
         # convert to dataframe
-        performance = pd.DataFrame.from_records(performance)
+        performance_df = pd.DataFrame.from_records(performance)
         columns = ['threshold', 'tp', 'fp', 'fn', 'tn'] + self.aux_fields
-        performance = performance.reindex(columns=columns)  # reorder columns
+        performance_df = performance_df.reindex(columns=columns)  # reorder columns
 
         # combine fields
-        performance['precision'] = performance['tp'] / (performance['tp'] + performance['fp'])
-        performance['recall'] = performance['tp'] / (performance['tp'] + performance['fn'])
-        performance['fp_to_tp'] = performance['fp'] / performance['tp']
-        performance['accuracy'] = (performance['tp'] + performance['tn']) / len(df)
-        performance['F1'] = 2 * performance['tp'] / (2 * performance['tp'] + performance['fp'] + performance['fn'])
-        performance['specificity'] = performance['tn'] / (performance['tn'] + performance['fp'])
-        performance['fpr'] = 1 - performance['specificity']
-        performance.reset_index(drop=True)
+        performance_df['precision'] = performance_df['tp'] / (performance_df['tp'] + performance_df['fp'])
+        performance_df['recall'] = performance_df['tp'] / (performance_df['tp'] + performance_df['fn'])
+        performance_df['fp_to_tp'] = performance_df['fp'] / performance_df['tp']
+        performance_df['accuracy'] = (performance_df['tp'] + performance_df['tn']) / len(df)
+        performance_df['F1'] = 2 * performance_df['tp'] / (2 * performance_df['tp'] + performance_df['fp'] + performance_df['fn'])
+        performance_df['specificity'] = performance_df['tn'] / (performance_df['tn'] + performance_df['fp'])
+        performance_df['fpr'] = 1 - performance_df['specificity']
+        performance_df.reset_index(drop=True)
 
         # add weighted recall for aux fields & rename aux fields
         for f in self.aux_fields:
-            performance[f"{f}_weighted_recall"] = performance[f] / performance.at[0, f]
-        performance.rename(columns={f: f"{f}_tp_sum" for f in self.aux_fields}, inplace=True)
+            performance_df[f"{f}_weighted_recall"] = performance_df[f] / performance_df.at[0, f]
+        performance_df.rename(columns={f: f"{f}_tp_sum" for f in self.aux_fields}, inplace=True)
 
         # save file
-        performance.to_csv(f'{self.tables_subdir}/threshold_vs_metrics_{dataset_name}.csv', index=False)
+        performance_df.to_csv(f'{self.tables_subdir}/threshold_vs_metrics_{dataset_name}.csv', index=False)
         self.logger.info(f'Generated threshold performance table ({dataset_name} data)')
 
     def _metrics_table(self,
@@ -542,9 +554,9 @@ class ModelEvaluate():
             performance.append(row)
 
         # convert to dataframe
-        performance = pd.DataFrame.from_records(performance)
-        performance = performance.reindex(columns=['dataset', 'ks', 'p-value'])  # reorder columns
+        performance_df = pd.DataFrame.from_records(performance)
+        performance_df = performance_df.reindex(columns=['dataset', 'ks', 'p-value'])  # reorder columns
 
         # save output to csv
-        performance.to_csv(self.tables_subdir/"ks_statistic", index=False)
+        performance_df.to_csv(self.tables_subdir/"ks_statistic", index=False)
         self.logger.info('Generated Kolmogorov-Smirnov (KS) Statistic table')

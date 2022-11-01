@@ -25,8 +25,11 @@ class ModelExplain():
 
     def __init__(self,
                  model: Optional[BaseEstimator] = None,
-                 datasets: Optional[List[tuple]] = None,
-                 output_dir: Optional[str] = None,
+                 datasets: Optional[List[tuple[
+                    Union[np.ndarray, pd.core.series.Series],
+                    Union[np.ndarray, pd.core.series.Series],
+                    str]]] = None,
+                 output_dir: Optional[Union[str, Path]] = None,
                  logger: Optional[logging.Logger] = None) -> None:
         """
         Parameters
@@ -43,7 +46,10 @@ class ModelExplain():
                 logger.
         """
 
-        self.model = model
+        if model is not None:
+            self.model = model
+        if datasets is None:
+            datasets = []
         self.datasets = datasets
 
         # Make directories
@@ -55,18 +61,18 @@ class ModelExplain():
         self.plot_context = 'seaborn-darkgrid'
 
         # Set up logger
-        self.logger = logger
         if logger is None:
             # create logger
-            self.logger = logging.getLogger(__name__).getChild(self.__class__.__name__).getChild(str(id(self)))
-            self.logger.setLevel(logging.INFO)
+            logger = logging.getLogger(__name__).getChild(self.__class__.__name__).getChild(str(id(self)))
+            logger.setLevel(logging.INFO)
             # create formatter
             formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
             # create and add handlers for console output
             ch = logging.StreamHandler()
             ch.setLevel(logging.INFO)
             ch.setFormatter(formatter)
-            self.logger.addHandler(ch)
+            logger.addHandler(ch)
+        self.logger = logger
 
     def gen_permutation_importance(self,
                                    n_repeats: int = 10,
@@ -111,6 +117,7 @@ class ModelExplain():
         """Generate model explanitory charts involving shap values."""
 
         plt.close('all')
+        assert self.model is not None, "self.model can't be None to run plot_shap()"
 
         # Generate Shap Charts
         self.logger.info("----- Generating Shap Charts -----")
@@ -270,7 +277,8 @@ class ModelExplain():
 
         # calculate psi
         psi_vals = (grp_rates['rate1'] - grp_rates['rate2']) * np.log(grp_rates['rate1'] / grp_rates['rate2'])
-        return psi_vals.mean()
+        psi: float = psi_vals.mean()
+        return psi
 
     def gen_csi(self, bin_type: str = 'fixed', n_bins: int = 10) -> None:
         """

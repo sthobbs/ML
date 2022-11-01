@@ -19,8 +19,11 @@ class ModelCalibrate():
 
     def __init__(self,
                  model: BaseEstimator,
-                 datasets: List[tuple],
-                 output_dir: str,
+                 datasets: List[tuple[
+                    Union[np.ndarray, pd.core.series.Series],
+                    Union[np.ndarray, pd.core.series.Series],
+                    str]],
+                 output_dir: Union[str, Path],
                  logger: Optional[logging.Logger] = None) -> None:
         """
         Parameters
@@ -48,18 +51,18 @@ class ModelCalibrate():
         self.plot_context = 'seaborn-darkgrid'
 
         # Set up logger
-        self.logger = logger
         if logger is None:
             # create logger
-            self.logger = logging.getLogger(__name__).getChild(self.__class__.__name__).getChild(str(id(self)))
-            self.logger.setLevel(logging.INFO)
+            logger = logging.getLogger(__name__).getChild(self.__class__.__name__).getChild(str(id(self)))
+            logger.setLevel(logging.INFO)
             # create formatter
             formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
             # create and add handlers for console output
             ch = logging.StreamHandler()
             ch.setLevel(logging.INFO)
             ch.setFormatter(formatter)
-            self.logger.addHandler(ch)
+            logger.addHandler(ch)
+        self.logger = logger
 
     def calibrate(self, train_dataset_name: str, calibration_type: str = 'logistic') -> None:
         """
