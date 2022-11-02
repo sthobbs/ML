@@ -34,11 +34,11 @@ def test_calibration_isotonic(file_name, xgb_exp_calibration_isotonic):
     assert non_empty_file(path)
 
 # 3) check that logistic model calibration model object is saved
-def test_calibration_logistic(xgb_exp_calibration_logistic):
+def test_calibration_logistic_save_model(xgb_exp_calibration_logistic):
     path = xgb_exp_calibration_logistic.calibration_dir / "model/calibration_model.pkl"
     assert non_empty_file(path)
 
 # 4) check that isotonic model calibration model object is saved
-def test_calibration_logistic(xgb_exp_calibration_isotonic):
+def test_calibration_isotonic_save_model(xgb_exp_calibration_isotonic):
     path = xgb_exp_calibration_isotonic.calibration_dir / "model/calibration_model.pkl"
     assert non_empty_file(path)

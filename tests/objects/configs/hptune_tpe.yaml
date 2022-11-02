@@ -21,7 +21,7 @@ description: test tpe hyperparameter tuning (with cross validation)
 # ----------------------------------
 
 ### Input Data
-data_dir: ./Datasets/creditcard  # data directory
+data_dir: ./Datasets/creditcard-small # data directory
 data_file_patterns: # files patterns of data sources
   train: train_*.csv
   validation: validation_*.csv

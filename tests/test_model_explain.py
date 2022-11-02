@@ -18,7 +18,7 @@ def test_permutation_importance(file_name, xgb_exp_explained):
 # TODO: fix all the warnings generated from shap (seems to be from underlying cython code)
 @pytest.mark.parametrize("file_name", [
     "other/partial_dependence_plots/V1.png",
-    "test/scatter_plots/V2.png",
+    "test/scatter_plots/V3.png",
     "train/abs_max_bar_plot.png",
     "validation/abs_mean_bar_plot.png",
     "test/beeswarm_plot.png",

@@ -9,12 +9,12 @@ def test_train_xgb(xgb_exp_train):
     assert xgb_exp_train.model.__sklearn_is_fitted__()
 
 # 2) check that the config is copied
-def test_train_xgb(xgb_exp_train):
+def test_config_copy(xgb_exp_train):
     path = xgb_exp_train.output_dir / "config.yaml"
     assert non_empty_file(path)
 
 # 3) check that log file is being written to
-def test_train_xgb(xgb_exp_train):
+def test_log_write(xgb_exp_train):
     path = xgb_exp_train.log_dir / "experiment.log"
     assert non_empty_file(path)
 
@@ -37,7 +37,7 @@ def test_load_model_from_path():
     assert isinstance(exp.model, BaseEstimator)
 
 # 6) load model from path in config
-def test_load_model_from_path():
+def test_load_model_from_path_in_config():
     config_path = "./tests/objects/configs/xgb_load_model_from_path.yaml"
     exp = XGBExperiment(config_path)
     assert getattr(exp, "model", None) is None
