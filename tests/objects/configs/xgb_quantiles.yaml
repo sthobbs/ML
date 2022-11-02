@@ -3,7 +3,7 @@
 # ---------- Meta Config -----------
 # ----------------------------------
 
-version: 1.0.1
+version: xgb_quantiles
 description: test experiment
 # version
   # required, type: str
@@ -55,7 +55,7 @@ input_model_path:
 # ----------------------------------
 
 ### Experiments Directory
-experiment_dir: ./Experiments
+experiment_dir: ./tmp_experiments
 # experiment_dir
   # required, type: str
   # example: ./Experiments
@@ -186,7 +186,7 @@ verbose: 10
 
 ### Hyperparameters
 hyperparameters:
-  n_estimators: 50
+  n_estimators: 10
   learning_rate: 0.1
   gamma: 0.1
   max_depth: 2
@@ -365,7 +365,7 @@ perm_imp_n_repeats: 3
 
 ### Shapely Values
 shap: False # True or False; True => generate shap charts
-shap_sample: 50000 #
+shap_sample: 5000 #
 # shap
   # not required, default False, type: boolean
   # valid values: True, False
@@ -378,8 +378,8 @@ shap_sample: 50000 #
 
 
 ### Population Stability Index
-psi: False
-psi_bin_type: fixed
+psi: True
+psi_bin_type: quantiles
 psi_n_bins: 10
 # psi
   # not required, default False, type: boolean
@@ -396,8 +396,8 @@ psi_n_bins: 10
 
 
 ### Characteristic Stability Index
-csi: False
-csi_bin_type: fixed
+csi: True
+csi_bin_type: quantiles
 csi_n_bins: 10
 # csi
   # not required, default False, type: boolean
@@ -422,7 +422,7 @@ vif: False
 
 
 ### Weight of Evidence & Information Value
-woe_iv: False
+woe_iv: True
 woe_bin_type: quantiles
 woe_n_bins: 10
 # woe_iv
@@ -458,7 +458,7 @@ corr_max_features: 100
 # ----------------------------------
 
 model_calibration: True
-calibration_type: logistic
+calibration_type: isotonic
 calibration_train_dataset_name: validation
 # calibration
   # not required, default False, type: boolean

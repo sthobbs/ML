@@ -1,4 +1,3 @@
-
 import xgboost as xgb
 from sklearn import ensemble, tree, neural_network, neighbors, linear_model, cluster
 from sklearn.base import BaseEstimator
@@ -472,6 +471,7 @@ class Experiment():
             6) generating model explanitory artifacts
             7) saving model scores
             8) calibrating a model
+            9) tear down
         """
 
         self.setup()
@@ -483,6 +483,7 @@ class Experiment():
             self.gen_scores()
         if self.model_calibration:
             self.calibrate(calibration_type=self.calibration_type)
+        self.tear_down()
 
     def setup(self) -> None:
         """
@@ -501,7 +502,9 @@ class Experiment():
         # load data
         self.load_data()
 
-    def load_model(self, model_obj: Optional[BaseEstimator] = None, path: Optional[str] = None) -> None:
+    def load_model(self,
+                   model_obj: Optional[BaseEstimator] = None,
+                   path: Optional[str] = None) -> None:
         """
         Loads a model object from a parameter or file path, or instantiates a
         new model object.
@@ -518,11 +521,6 @@ class Experiment():
 
         # use generic scikit-learn model object (if passed in)
         if model_obj is not None:
-            if self.model_type != 'Other':
-                msg = (f"model_type should be 'Other', not {self.model_type} if a"
-                       " model_obj is being passed into .load_model()")
-                self.logger.error(msg)
-                raise ConfigError(msg)
             if not isinstance(model_obj, BaseEstimator):
                 msg = f"model_obj should be a scikit-learn model object, not {type(model_obj)}"
                 self.logger.error(msg)
@@ -922,7 +920,7 @@ class Experiment():
             scores = self.model.predict_proba(dataset['X'])[:, 1]
             scores = pd.Series(scores, name='score', index=dataset['y'].index)
             df = pd.concat([dataset['y'], scores, self.aux_data[dataset_name]], axis=1)
-            path = f"{self.score_dir}/{dataset_name}_scores"
+            path = f"{self.score_dir}/{dataset_name}_scores.csv"
             df.to_csv(path, index=False)
             self.logger.info(f"Saved {dataset_name} scores to {path}")
 
@@ -960,3 +958,18 @@ class Experiment():
 
         # save model calibration object
         model_calibrate.save_model()
+
+    def tear_down(self):
+        """
+        Final actions at the end of an experiment, including:
+        
+        1) Stop our logger from writing to file (so the file isn't locked)
+        """
+
+        # remove handler that writes to file from logger
+        for handler in self.logger.handlers:
+            if getattr(handler, 'baseFilename', None):
+                self.logger.removeHandler(handler)
+                handler.close()
+        
+        # TODO? ...

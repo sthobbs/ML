@@ -3,7 +3,7 @@
 # ---------- Meta Config -----------
 # ----------------------------------
 
-version: 1.0.1
+version: xgb_load_model_from_obj
 description: test experiment
 # version
   # required, type: str
@@ -55,7 +55,7 @@ input_model_path:
 # ----------------------------------
 
 ### Experiments Directory
-experiment_dir: ./Experiments
+experiment_dir: ./tmp_experiments
 # experiment_dir
   # required, type: str
   # example: ./Experiments
@@ -345,7 +345,7 @@ tuning_parameters:
 # ----------------------------------
 
 ### Permutation Feature Importance
-permutation_importance: False
+permutation_importance: True
 perm_imp_metrics: [roc_auc, average_precision, neg_log_loss]
 perm_imp_n_repeats: 3
 # permutation_importance
@@ -364,8 +364,8 @@ perm_imp_n_repeats: 3
 
 
 ### Shapely Values
-shap: False # True or False; True => generate shap charts
-shap_sample: 50000 #
+shap: True # True or False; True => generate shap charts
+shap_sample: 5000 #
 # shap
   # not required, default False, type: boolean
   # valid values: True, False
@@ -378,7 +378,7 @@ shap_sample: 50000 #
 
 
 ### Population Stability Index
-psi: False
+psi: True
 psi_bin_type: fixed
 psi_n_bins: 10
 # psi
@@ -396,7 +396,7 @@ psi_n_bins: 10
 
 
 ### Characteristic Stability Index
-csi: False
+csi: True
 csi_bin_type: fixed
 csi_n_bins: 10
 # csi
@@ -414,7 +414,7 @@ csi_n_bins: 10
 
 
 ### Variance Inflation Factor
-vif: False
+vif: True
 # vif
   # not required, default False, type: boolean
   # valid values: True, False
@@ -422,8 +422,8 @@ vif: False
 
 
 ### Weight of Evidence & Information Value
-woe_iv: False
-woe_bin_type: quantiles
+woe_iv: True
+woe_bin_type: fixed
 woe_n_bins: 10
 # woe_iv
   # not required, default False, type: boolean
@@ -440,7 +440,7 @@ woe_n_bins: 10
 
 
 ### Correlation Matrix and Heatmap
-correlation: False
+correlation: True
 corr_max_features: 100
 # correlation
   # not required, default False, type: boolean
@@ -457,7 +457,7 @@ corr_max_features: 100
 # ------- Model Calibration --------
 # ----------------------------------
 
-model_calibration: True
+model_calibration: False
 calibration_type: logistic
 calibration_train_dataset_name: validation
 # calibration

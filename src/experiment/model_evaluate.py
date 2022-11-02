@@ -1,10 +1,10 @@
-
 import pandas as pd
 from sklearn.metrics import average_precision_score, precision_recall_curve, \
     auc, roc_curve, det_curve, DetCurveDisplay, brier_score_loss, log_loss, \
     roc_auc_score
 from sklearn.base import BaseEstimator
 import xgboost as xgb
+import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 from pathlib import Path
@@ -13,6 +13,7 @@ from tqdm import tqdm
 from scipy.stats import ks_2samp
 import logging
 from typing import Optional, List, Union
+matplotlib.use('agg')
 
 
 def metric_score(y_true, y_score, metric: str) -> float:
@@ -558,5 +559,5 @@ class ModelEvaluate():
         performance_df = performance_df.reindex(columns=['dataset', 'ks', 'p-value'])  # reorder columns
 
         # save output to csv
-        performance_df.to_csv(self.tables_subdir/"ks_statistic", index=False)
+        performance_df.to_csv(self.tables_subdir/"ks_statistics.csv", index=False)
         self.logger.info('Generated Kolmogorov-Smirnov (KS) Statistic table')

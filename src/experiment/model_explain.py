@@ -1,4 +1,3 @@
-
 from pathlib import Path
 import logging
 from sklearn.inspection import permutation_importance
@@ -9,9 +8,11 @@ import seaborn as sns
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
+import matplotlib
 import matplotlib.pyplot as plt
 import xgboost as xgb
 from typing import Optional, List, Union
+matplotlib.use('agg')
 
 
 class ModelExplain():

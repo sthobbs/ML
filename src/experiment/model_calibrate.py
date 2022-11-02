@@ -1,6 +1,6 @@
-
 from pathlib import Path
 import logging
+import matplotlib
 import matplotlib.pyplot as plt
 from sklearn.metrics import roc_curve, precision_recall_curve
 from sklearn.linear_model import LogisticRegression
@@ -12,6 +12,7 @@ import pandas as pd
 import pickle
 from typing import List, Optional, Union
 from experiment.model_evaluate import ModelEvaluate
+matplotlib.use('agg')
 
 
 class ModelCalibrate():

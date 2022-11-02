@@ -3,8 +3,8 @@
 # ---------- Meta Config -----------
 # ----------------------------------
 
-version: 1.0.1
-description: test experiment
+version: hptune_atpe
+description: test atpe hyperparameter tuning
 # version
   # required, type: str
   # example: 1.0.1
@@ -55,7 +55,7 @@ input_model_path:
 # ----------------------------------
 
 ### Experiments Directory
-experiment_dir: ./Experiments
+experiment_dir: ./tmp_experiments
 # experiment_dir
   # required, type: str
   # example: ./Experiments
@@ -186,7 +186,7 @@ verbose: 10
 
 ### Hyperparameters
 hyperparameters:
-  n_estimators: 50
+  n_estimators: 40
   learning_rate: 0.1
   gamma: 0.1
   max_depth: 2
@@ -210,8 +210,8 @@ hyperparameters:
 
 
 ### Hyperparameter Tuning
-hyperparameter_tuning: False # True or False
-hyperparameter_eval_metric: log_loss # average_precision, aucpr, auc, log_loss, brier_loss
+hyperparameter_tuning: True # True or False
+hyperparameter_eval_metric: auc # average_precision, aucpr, auc, log_loss, brier_loss
 # hyperparameter_tuning
   # not required, default False, type: boolean
   # valid values: True, False
@@ -237,9 +237,9 @@ cv_folds: 5
 
 
 ### Hyperparameter Tuning Algorithm
-tuning_algorithm: random # grid, random, tpe, or atpe.
-grid_search_n_jobs: 5
-tuning_iterations: 10 # need to specify for random, tpe, or atpe
+tuning_algorithm: atpe # grid, random, tpe, or atpe.
+grid_search_n_jobs: 3
+tuning_iterations: 3 # need to specify for random, tpe, or atpe
 # tuning_algorithm
   # not required, default None, type: string
   # valid values: grid, random, tpe, or atpe
@@ -296,8 +296,8 @@ tuning_parameters:
   n_estimators:
     function: quniform
     params:
-      low: 50
-      high: 1500
+      low: 10
+      high: 20
       q: 1
   learning_rate:
     function: uniform
@@ -312,7 +312,7 @@ tuning_parameters:
   max_depth:
     function: choice # could use quniform here
     params:
-      options: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+      options: [1, 2]
   min_child_weight:
     function: uniform 
     params:
@@ -457,7 +457,7 @@ corr_max_features: 100
 # ------- Model Calibration --------
 # ----------------------------------
 
-model_calibration: True
+model_calibration: False
 calibration_type: logistic
 calibration_train_dataset_name: validation
 # calibration
