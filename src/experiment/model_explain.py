@@ -11,7 +11,7 @@ from tqdm import tqdm
 import matplotlib
 import matplotlib.pyplot as plt
 import xgboost as xgb
-from typing import Optional, List, Union
+from typing import Optional, List, Union, Tuple
 matplotlib.use('agg')
 
 
@@ -26,7 +26,7 @@ class ModelExplain():
 
     def __init__(self,
                  model: Optional[BaseEstimator] = None,
-                 datasets: Optional[List[tuple[
+                 datasets: Optional[List[Tuple[
                     Union[np.ndarray, pd.core.series.Series],
                     Union[np.ndarray, pd.core.series.Series],
                     str]]] = None,

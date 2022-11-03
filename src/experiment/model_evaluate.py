@@ -12,7 +12,7 @@ import seaborn as sns
 from tqdm import tqdm
 from scipy.stats import ks_2samp
 import logging
-from typing import Optional, List, Union
+from typing import Optional, List, Union, Tuple
 matplotlib.use('agg')
 
 
@@ -70,7 +70,7 @@ class ModelEvaluate():
 
     def __init__(self,
                  model: Optional[BaseEstimator] = None,
-                 datasets: Optional[List[tuple[
+                 datasets: Optional[List[Tuple[
                     Union[np.ndarray, pd.core.series.Series],
                     Union[np.ndarray, pd.core.series.Series],
                     str]]] = None,

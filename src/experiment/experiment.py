@@ -18,7 +18,7 @@ import pickle
 import time
 import random
 import logging
-from typing import Union, Optional, Dict
+from typing import Union, Optional, Dict, Tuple
 from experiment.model_evaluate import ModelEvaluate, metric_score
 from experiment.model_explain import ModelExplain
 from experiment.model_calibrate import ModelCalibrate
@@ -370,7 +370,7 @@ class Experiment():
                                f" the following keys and no others: {func_to_params[func]}.")
                         raise ConfigError(msg)
                     # check that all params have valid values
-                    param_to_datatype: Dict[str, Union[type, tuple[type, type]]] = {
+                    param_to_datatype: Dict[str, Union[type, Tuple[type, type]]] = {
                         "options": list,
                         "low": (int, float),
                         "high": (int, float),

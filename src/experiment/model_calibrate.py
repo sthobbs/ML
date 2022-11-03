@@ -10,7 +10,7 @@ from sklearn.base import BaseEstimator
 import numpy as np
 import pandas as pd
 import pickle
-from typing import List, Optional, Union
+from typing import List, Optional, Union, Tuple
 from experiment.model_evaluate import ModelEvaluate
 matplotlib.use('agg')
 
@@ -20,7 +20,7 @@ class ModelCalibrate():
 
     def __init__(self,
                  model: BaseEstimator,
-                 datasets: List[tuple[
+                 datasets: List[Tuple[
                     Union[np.ndarray, pd.core.series.Series],
                     Union[np.ndarray, pd.core.series.Series],
                     str]],
