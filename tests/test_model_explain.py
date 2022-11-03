@@ -14,6 +14,7 @@ def test_permutation_importance(file_name, xgb_exp_explained):
     path = xgb_exp_explained.explain_dir / "feature_importance" / file_name
     assert non_empty_file(path)
 
+
 # 2) check that (a sample of) shap plots are generated
 # TODO: fix all the warnings generated from shap (seems to be from underlying cython code)
 @pytest.mark.parametrize("file_name", [
@@ -27,6 +28,7 @@ def test_explain_shap(file_name, xgb_exp_explained):
     path = xgb_exp_explained.explain_dir / "shap" / file_name
     assert non_empty_file(path)
 
+
 # 3) check that psi and csi tables are generated
 @pytest.mark.parametrize("file_name", [
     "psi.csv",
@@ -36,6 +38,7 @@ def test_explain_shap(file_name, xgb_exp_explained):
 def test_explain_psi_csi(file_name, xgb_exp_explained):
     path = xgb_exp_explained.explain_dir / file_name
     assert non_empty_file(path)
+
 
 # 4) check that psi and csi tables are generated with quantile bins
 @pytest.mark.parametrize("file_name", [
@@ -47,6 +50,7 @@ def test_explain_psi_csi_quantiles(file_name, xgb_exp_explained_quantiles):
     path = xgb_exp_explained_quantiles.explain_dir / file_name
     assert non_empty_file(path)
 
+
 # 5) check that vif tables are generated
 @pytest.mark.parametrize("file_name", [
     "vif_other.csv",
@@ -57,6 +61,7 @@ def test_explain_psi_csi_quantiles(file_name, xgb_exp_explained_quantiles):
 def test_explain_vif(file_name, xgb_exp_explained):
     path = xgb_exp_explained.explain_dir / "vif" / file_name
     assert non_empty_file(path)
+
 
 # 6) check that woe/iv tables are generated
 @pytest.mark.parametrize("file_name", [
@@ -73,6 +78,7 @@ def test_explain_woe_iv(file_name, xgb_exp_explained):
     path = xgb_exp_explained.explain_dir / "woe_iv" / file_name
     assert non_empty_file(path)
 
+
 # 7) check that woe/iv tables are generated with quantile bins
 @pytest.mark.parametrize("file_name", [
     "woe_other.csv",
@@ -87,6 +93,7 @@ def test_explain_woe_iv(file_name, xgb_exp_explained):
 def test_explain_woe_iv_quantiles(file_name, xgb_exp_explained_quantiles):
     path = xgb_exp_explained_quantiles.explain_dir / "woe_iv" / file_name
     assert non_empty_file(path)
+
 
 # 8) check that correlation tables and plots are generated
 @pytest.mark.parametrize("file_name", [

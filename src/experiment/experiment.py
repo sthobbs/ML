@@ -962,7 +962,7 @@ class Experiment():
     def tear_down(self):
         """
         Final actions at the end of an experiment, including:
-        
+
         1) Stop our logger from writing to file (so the file isn't locked)
         """
 
@@ -971,5 +971,5 @@ class Experiment():
             if getattr(handler, 'baseFilename', None):
                 self.logger.removeHandler(handler)
                 handler.close()
-        
+
         # TODO? ...

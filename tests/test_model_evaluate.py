@@ -33,6 +33,7 @@ def test_evaluation_plots(file_name, xgb_exp_evaluated):
     path = xgb_exp_evaluated.performance_dir / "plots" / file_name
     assert non_empty_file(path)
 
+
 # 2) check that performance evaluation tables are generated
 @pytest.mark.parametrize("file_name", [
     "ks_statistics.csv",

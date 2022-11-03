@@ -21,11 +21,13 @@ calibration_files = [
     "score_mapping_validation.png",
 ]
 
+
 # 1) check that logistic model calibration plots and tables are generated
 @pytest.mark.parametrize("file_name", calibration_files)
 def test_calibration_logistic(file_name, xgb_exp_calibration_logistic):
     path = xgb_exp_calibration_logistic.calibration_dir / "comparison" / file_name
     assert non_empty_file(path)
+
 
 # 2) check that isotonic model calibration plots and tables are generated
 @pytest.mark.parametrize("file_name", calibration_files)
@@ -33,10 +35,12 @@ def test_calibration_isotonic(file_name, xgb_exp_calibration_isotonic):
     path = xgb_exp_calibration_isotonic.calibration_dir / "comparison" / file_name
     assert non_empty_file(path)
 
+
 # 3) check that logistic model calibration model object is saved
 def test_calibration_logistic_save_model(xgb_exp_calibration_logistic):
     path = xgb_exp_calibration_logistic.calibration_dir / "model/calibration_model.pkl"
     assert non_empty_file(path)
+
 
 # 4) check that isotonic model calibration model object is saved
 def test_calibration_isotonic_save_model(xgb_exp_calibration_isotonic):
