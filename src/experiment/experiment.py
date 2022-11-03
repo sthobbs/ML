@@ -152,8 +152,8 @@ class Experiment():
         self.calibration_train_dataset_name = self.config.get("calibration_train_dataset_name", "validation")
 
         # ------ Other -------
-        self.data: Dict[str, Dict[str, Union[np.ndarray, pd.core.series.Series]]] = {}  # where data will be stored
-        self.aux_data: Dict[str, Union[np.ndarray, pd.core.series.Series]] = {}  # where auxiliary fields will be stored
+        self.data: Dict[str, Dict[str, Union[pd.core.frame.DataFrame, pd.core.series.Series]]] = {}  # where data will be stored
+        self.aux_data: Dict[str, Union[pd.core.frame.DataFrame, pd.core.series.Series]] = {}  # where auxiliary fields will be stored
 
         # specific order for dataset_names (for appropriate early stopping if enabled)
         all_names = set(self.data_file_patterns)

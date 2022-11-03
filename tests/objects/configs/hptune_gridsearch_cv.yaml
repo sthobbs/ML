@@ -214,7 +214,7 @@ cv_folds: 3
 
 ### Hyperparameter Tuning Algorithm
 tuning_algorithm: grid # grid, random, tpe, or atpe.
-grid_search_n_jobs: 5
+grid_search_n_jobs: 2
 tuning_iterations: 3 # need to specify for random, tpe, or atpe
 # tuning_algorithm
   # not required, default None, type: string

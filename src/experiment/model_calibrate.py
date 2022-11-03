@@ -21,8 +21,8 @@ class ModelCalibrate():
     def __init__(self,
                  model: BaseEstimator,
                  datasets: List[Tuple[
-                    Union[np.ndarray, pd.core.series.Series],
-                    Union[np.ndarray, pd.core.series.Series],
+                    Union[np.ndarray, pd.core.frame.DataFrame, pd.core.series.Series],
+                    Union[np.ndarray, pd.core.frame.DataFrame, pd.core.series.Series],
                     str]],
                  output_dir: Union[str, Path],
                  logger: Optional[logging.Logger] = None) -> None:

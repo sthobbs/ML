@@ -71,8 +71,8 @@ class ModelEvaluate():
     def __init__(self,
                  model: Optional[BaseEstimator] = None,
                  datasets: Optional[List[Tuple[
-                    Union[np.ndarray, pd.core.series.Series],
-                    Union[np.ndarray, pd.core.series.Series],
+                    Union[np.ndarray, pd.core.frame.DataFrame, pd.core.series.Series],
+                    Union[np.ndarray, pd.core.frame.DataFrame, pd.core.series.Series],
                     str]]] = None,
                  output_dir: Optional[Union[str, Path]] = None,
                  aux_fields: Optional[List[str]] = None,
@@ -251,7 +251,8 @@ class ModelEvaluate():
                 self.logger.warning(f"unexpected metric '{metric}', skipping it")
                 continue
             for dataset_name, default_name in name_pairs:
-                best_n_estimators = f(evals_result.get(default_name, {}).get(metric)) + 1
+                n_estimator_performance = np.array(evals_result.get(default_name, {}).get(metric))
+                best_n_estimators = f(n_estimator_performance) + 1
                 df.at[metric, dataset_name] = best_n_estimators
         df.to_csv(f'{self.tables_subdir}/optimal_n_estimators.csv')
         self.logger.info('Generated optimal n_estimators table')
@@ -330,7 +331,11 @@ class ModelEvaluate():
             self.logger.info(f'Plotted Precision vs Recall ({dataset_name} data)')
         plt.close()
 
-    def _plot_roc(self, fpr: np.ndarray, tpr: np.ndarray, dataset_name: str, roc_auc: float) -> None:
+    def _plot_roc(self,
+                  fpr: np.ndarray,
+                  tpr: np.ndarray,
+                  dataset_name: str,
+                  roc_auc: float) -> None:
         """
         Plot ROC curve.
 
@@ -364,7 +369,10 @@ class ModelEvaluate():
             self.logger.info(f'Plotted ROC ({dataset_name} data)')
         plt.close()
 
-    def _plot_det(self, fpr: np.ndarray, fnr: np.ndarray, dataset_name: str) -> None:
+    def _plot_det(self,
+                  fpr: np.ndarray,
+                  fnr: np.ndarray,
+                  dataset_name: str) -> None:
         """
         Plot ROC curve.
 

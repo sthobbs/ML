@@ -27,8 +27,8 @@ class ModelExplain():
     def __init__(self,
                  model: Optional[BaseEstimator] = None,
                  datasets: Optional[List[Tuple[
-                    Union[np.ndarray, pd.core.series.Series],
-                    Union[np.ndarray, pd.core.series.Series],
+                    Union[pd.core.frame.DataFrame, pd.core.series.Series],
+                    Union[pd.core.frame.DataFrame, pd.core.series.Series],
                     str]]] = None,
                  output_dir: Optional[Union[str, Path]] = None,
                  logger: Optional[logging.Logger] = None) -> None:
