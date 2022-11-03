@@ -1,7 +1,8 @@
-from xgb_experiment import XGBExperiment
+
+from experiment.xgb_experiment import XGBExperiment
 
 
 if __name__ == "__main__":
-    config_path = "C:/Users/hobbs/Documents/Programming/ML/config.yaml"
+    config_path = "./config.yaml"
     exp = XGBExperiment(config_path)
     exp.run()
