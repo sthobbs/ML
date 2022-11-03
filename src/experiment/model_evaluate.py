@@ -75,7 +75,7 @@ class ModelEvaluate():
                     Union[np.ndarray, pd.core.series.Series],
                     str]]] = None,
                  output_dir: Optional[Union[str, Path]] = None,
-                 aux_fields: Optional[list[str]] = None,
+                 aux_fields: Optional[List[str]] = None,
                  logger: Optional[logging.Logger] = None) -> None:
         """
         Parameters
