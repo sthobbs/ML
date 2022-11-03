@@ -4,6 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "experiment"
+requires-python = ">=3.7"
 
 [tool.pytest.ini_options]
 addopts = "--cov=experiment"
