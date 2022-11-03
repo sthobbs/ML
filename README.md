@@ -7,7 +7,7 @@ This repo packages up code for reproducible machine learning experiments, includ
 - XGBoost-related objects (plots of n_estimators vs performance metrics, tree-based feature importance)
 - etc.
 
-![Tests](https://github.com/sthobbs/ML/actions/workflows/tests.yml/badge.svg)
+![Tests](https://github.com/sthobbs/ML/actions/workflows/tests.yaml/badge.svg)
 
 Example code to run an XGBoost experiment:
 ```
