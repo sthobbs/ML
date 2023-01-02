@@ -8,11 +8,13 @@ This repo packages up code for reproducible machine learning experiments, includ
 - Model calibration
 - XGBoost-related objects (plots of n_estimators vs performance metrics, tree-based feature importance)
 
+See example output in Experiments/
+
 Example code to run an XGBoost experiment:
 ```
 from xgb_experiment import XGBExperiment
 
-config_path = ".../config.yaml"
+config_path = "./config.yaml"
 exp = XGBExperiment(config_path)
 exp.run()
 ```
