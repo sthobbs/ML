@@ -4,7 +4,13 @@ import xgboost as xgb
 
 
 class XGBExperiment(Experiment):
-    """Class for training and evaluating XGBoost models"""
+    """
+    Class for training and evaluating XGBoost models
+
+    Author:
+       Steve Hobbs
+       github.com/sthobbs
+    """
 
     def __init__(self, config_path: str) -> None:
         """

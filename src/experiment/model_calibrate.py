@@ -16,7 +16,13 @@ matplotlib.use('agg')
 
 
 class ModelCalibrate():
-    """Calibrate model so that it outputs a probability."""
+    """
+    Calibrate model so that it outputs a probability.
+
+    Author:
+       Steve Hobbs
+       github.com/sthobbs
+    """
 
     def __init__(self,
                  model: BaseEstimator,
