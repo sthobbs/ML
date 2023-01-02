@@ -4,7 +4,7 @@
 # ----------------------------------
 
 version: 1.0.1
-description: test experiment
+description: Example experiment
 # version
   # required, type: str
   # example: 1.0.1
@@ -22,7 +22,7 @@ description: test experiment
 
 ### Input Data
 data_dir: ./Datasets/creditcard  # data directory
-data_file_patterns: # files patterns of data sources
+data_file_patterns:  # files patterns of data sources
   train: train_*.csv
   validation: validation_*.csv
   test: test_*.csv
@@ -65,17 +65,17 @@ experiment_dir: ./Experiments
 
 
 ### Output Sub-directories (of experiment_dir/[current_experiment_dir]/)
-performance_dir: performance # for model performance charts
-model_dir: model # for model objects
-explain_dir: explain # for model explanatory objects
-score_dir: scores # for model scores (only required if save_scores == True)
-log_dir: logs # for logging (default 'logs')
-calibration_dir: calibration # for model calibration
+performance_dir: performance  # for model performance charts
+model_dir: model  # for model objects
+explain_dir: explain  # for model explanatory objects
+score_dir: scores  # for model scores (only required if save_scores == True)
+log_dir: logs  # for logging (default 'logs')
+calibration_dir: calibration  # for model calibration
 
 
 ### Other
 performance_increment: 0.01
-save_scores: False
+save_scores: True
 # performance_increment
   # not required, default 0.01, type: float (or str that can cast to float)
   # valid values: between 0 and 1
@@ -110,7 +110,7 @@ model_type: XGBClassifier
 
 ### Training Type
 supervised: True
-binary_classification: True # True for 2-class classification experiments
+binary_classification: True  # True for 2-class classification experiments
 # supervised
   # required, type: boolean
   # valid values: True, False
@@ -198,7 +198,7 @@ hyperparameters:
   scale_pos_weight: 1
   use_label_encoder: False
   # early_stopping_rounds: 50 # need XGBoost v1.6.0
-  eval_metric: [auc, aucpr, error, logloss] # last metric is used for early stopping (if applicable)
+  eval_metric: [auc, aucpr, error, logloss]  # last metric is used for early stopping (if applicable)
 # hyperparameters
   # required, type: dict (list of key-value pairs)
   # valid values: hyperparameter keywords that can be passed into the sklearn model
@@ -210,8 +210,8 @@ hyperparameters:
 
 
 ### Hyperparameter Tuning
-hyperparameter_tuning: False # True or False
-hyperparameter_eval_metric: log_loss # average_precision, aucpr, auc, log_loss, brier_loss
+hyperparameter_tuning: True  # True or False
+hyperparameter_eval_metric: log_loss  # average_precision, aucpr, auc, log_loss, brier_loss
 # hyperparameter_tuning
   # not required, default False, type: boolean
   # valid values: True, False
@@ -237,9 +237,9 @@ cv_folds: 5
 
 
 ### Hyperparameter Tuning Algorithm
-tuning_algorithm: random # grid, random, tpe, or atpe.
+tuning_algorithm: atpe  # grid, random, tpe, or atpe.
 grid_search_n_jobs: 5
-tuning_iterations: 10 # need to specify for random, tpe, or atpe
+tuning_iterations: 30  # need to specify for random, tpe, or atpe
 # tuning_algorithm
   # not required, default None, type: string
   # valid values: grid, random, tpe, or atpe
@@ -247,7 +247,7 @@ tuning_iterations: 10 # need to specify for random, tpe, or atpe
     # grid => Grid Search
     # random => Random Search
     # tpe => Tree Pazen Estimator
-    # atpe => adaptive Tree Pazen Estimator
+    # atpe => Adaptive Tree Pazen Estimator
   # notes:
     # required if hyperparameter_tuning is True
     # tpe matches random for the first 20 iterations
@@ -278,7 +278,7 @@ tuning_iterations: 10 # need to specify for random, tpe, or atpe
       # possible distribution functions and params
         # choice(options)
         # uniform(low, high)
-        # quniform(low, high, q)   # round(uniform(low, high) / q) * q
+        # quniform(low, high, q)  # i.e. round(uniform(low, high) / q) * q
         # normal(mu, sigma)
         # there are also log-uniform and log-normal distributions that I didn't implement
 
@@ -310,7 +310,7 @@ tuning_parameters:
       low: 0
       high: 5
   max_depth:
-    function: choice # could use quniform here
+    function: choice  # could use quniform here
     params:
       options: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
   min_child_weight:
@@ -345,9 +345,9 @@ tuning_parameters:
 # ----------------------------------
 
 ### Permutation Feature Importance
-permutation_importance: False
+permutation_importance: True
 perm_imp_metrics: [roc_auc, average_precision, neg_log_loss]
-perm_imp_n_repeats: 3
+perm_imp_n_repeats: 5
 # permutation_importance
   # not required, default False, type: boolean
   # valid values: True, False
@@ -359,13 +359,13 @@ perm_imp_n_repeats: 3
   # meaning: metrics used in permutation feature importance calculations
 # perm_imp_n_repeats
   # not required, default 10, type: int (or str that casts to int)
-  # valid values: int > 10
+  # valid values: int > 1
   # meaning: number of times to permute each feature in permutation feature importance
 
 
 ### Shapely Values
-shap: False # True or False; True => generate shap charts
-shap_sample: 50000 #
+shap: True  # True or False; True => generate shap charts
+shap_sample: 50000
 # shap
   # not required, default False, type: boolean
   # valid values: True, False
@@ -378,7 +378,7 @@ shap_sample: 50000 #
 
 
 ### Population Stability Index
-psi: False
+psi: True
 psi_bin_type: fixed
 psi_n_bins: 10
 # psi
@@ -396,7 +396,7 @@ psi_n_bins: 10
 
 
 ### Characteristic Stability Index
-csi: False
+csi: True
 csi_bin_type: fixed
 csi_n_bins: 10
 # csi
@@ -414,7 +414,7 @@ csi_n_bins: 10
 
 
 ### Variance Inflation Factor
-vif: False
+vif: True
 # vif
   # not required, default False, type: boolean
   # valid values: True, False
@@ -422,7 +422,7 @@ vif: False
 
 
 ### Weight of Evidence & Information Value
-woe_iv: False
+woe_iv: True
 woe_bin_type: quantiles
 woe_n_bins: 10
 # woe_iv
@@ -440,7 +440,7 @@ woe_n_bins: 10
 
 
 ### Correlation Matrix and Heatmap
-correlation: False
+correlation: True
 corr_max_features: 100
 # correlation
   # not required, default False, type: boolean

@@ -1,0 +1,221 @@
+2023-01-02 11:49:44,310 - INFO - config copied to Experiments\1.0.1-20230102-114944/config.yaml
+2023-01-02 11:49:44,310 - INFO - Initializing model
+2023-01-02 11:49:44,310 - INFO - ----- Loading Data -----
+2023-01-02 11:49:44,311 - INFO - loading train data from Datasets\creditcard\train_*.csv
+2023-01-02 11:49:45,198 - INFO - loading validation data from Datasets\creditcard\validation_*.csv
+2023-01-02 11:49:45,685 - INFO - loading test data from Datasets\creditcard\test_*.csv
+2023-01-02 11:49:46,170 - INFO - loading other data from Datasets\creditcard\other_*.csv
+2023-01-02 11:49:46,319 - INFO - ----- Tuning Hyperparameters (via atpe search) -----
+2023-01-02 11:49:46,873 - INFO - {'colsample_bytree': 0.16108564729115615, 'gamma': 1.0588055469642517, 'learning_rate': 0.010114778341005395, 'max_depth': 4, 'min_child_weight': 3.2956667417450145, 'n_estimators': 1438, 'reg_alpha': 0.02408407559676362, 'reg_lambda': 1.1266222237031518, 'subsample': 0.016701071622846064}
+2023-01-02 11:50:24,669 - INFO - log_loss: 0.004459165560147255
+2023-01-02 11:50:24,669 - INFO - 37.79661798477173 seconds to train
+2023-01-02 11:50:25,098 - INFO - {'colsample_bytree': 0.5954212157867491, 'gamma': 0.7490183421989682, 'learning_rate': 0.005850548861957532, 'max_depth': 4, 'min_child_weight': 0.9186092456655437, 'n_estimators': 136, 'reg_alpha': 4.501785582384775, 'reg_lambda': 0.8914085778008972, 'subsample': 0.7797830337891964}
+2023-01-02 11:50:47,525 - INFO - log_loss: 0.25637259196487183
+2023-01-02 11:50:47,525 - INFO - 22.426341772079468 seconds to train
+2023-01-02 11:50:48,019 - INFO - {'colsample_bytree': 0.9393711522290942, 'gamma': 2.6005821232384987, 'learning_rate': 0.0794829857223181, 'max_depth': 4, 'min_child_weight': 3.836227570917737, 'n_estimators': 249, 'reg_alpha': 0.2677370273745139, 'reg_lambda': 1.1168376843902654, 'subsample': 0.43913687241399224}
+2023-01-02 11:51:38,820 - INFO - log_loss: 0.002332709656806869
+2023-01-02 11:51:38,820 - INFO - 50.80140709877014 seconds to train
+2023-01-02 11:51:39,212 - INFO - {'colsample_bytree': 0.24914599119659342, 'gamma': 4.434284137056319, 'learning_rate': 0.05540005748445205, 'max_depth': 10, 'min_child_weight': 2.872540490358704, 'n_estimators': 269, 'reg_alpha': 1.5525575079375042, 'reg_lambda': 0.9130196557638467, 'subsample': 0.402686614410961}
+2023-01-02 11:52:07,027 - INFO - log_loss: 0.0023033477429285107
+2023-01-02 11:52:07,028 - INFO - 27.815479278564453 seconds to train
+2023-01-02 11:52:07,453 - INFO - {'colsample_bytree': 0.9415026027535431, 'gamma': 3.357354209038136, 'learning_rate': 0.08877281961234076, 'max_depth': 10, 'min_child_weight': 0.7867734974568519, 'n_estimators': 232, 'reg_alpha': 4.364425595286678, 'reg_lambda': 1.0437060833006162, 'subsample': 0.8228964499303333}
+2023-01-02 11:53:41,892 - INFO - log_loss: 0.0022525953659686183
+2023-01-02 11:53:41,892 - INFO - 94.43862128257751 seconds to train
+2023-01-02 11:53:42,322 - INFO - {'colsample_bytree': 0.4768311637821814, 'gamma': 0.587843432568832, 'learning_rate': 0.06040679510084748, 'max_depth': 7, 'min_child_weight': 2.821246090995404, 'n_estimators': 483, 'reg_alpha': 2.594377452324456, 'reg_lambda': 1.1387559167942036, 'subsample': 0.23636413027260195}
+2023-01-02 11:54:19,587 - INFO - log_loss: 0.0022717787726845655
+2023-01-02 11:54:19,588 - INFO - 37.26537537574768 seconds to train
+2023-01-02 11:54:19,995 - INFO - {'colsample_bytree': 0.41534716079344536, 'gamma': 2.6292541329291947, 'learning_rate': 0.021417851289067927, 'max_depth': 3, 'min_child_weight': 1.9104205722121348, 'n_estimators': 668, 'reg_alpha': 2.267384229933207, 'reg_lambda': 1.0331812053326177, 'subsample': 0.7439796273272815}
+2023-01-02 11:55:26,194 - INFO - log_loss: 0.0022396660154953645
+2023-01-02 11:55:26,194 - INFO - 66.19870328903198 seconds to train
+2023-01-02 11:55:26,618 - INFO - {'colsample_bytree': 0.13959863247592208, 'gamma': 3.2283961733825506, 'learning_rate': 0.0783177705175861, 'max_depth': 1, 'min_child_weight': 4.251993004984824, 'n_estimators': 1359, 'reg_alpha': 4.278039889913515, 'reg_lambda': 0.9041699079103511, 'subsample': 0.11698419662492021}
+2023-01-02 11:56:20,558 - INFO - log_loss: 0.002630151949600923
+2023-01-02 11:56:20,558 - INFO - 53.94018745422363 seconds to train
+2023-01-02 11:56:21,041 - INFO - {'colsample_bytree': 0.6290561494438222, 'gamma': 3.4130982173695976, 'learning_rate': 0.011811946594963048, 'max_depth': 2, 'min_child_weight': 0.08144817400057736, 'n_estimators': 1103, 'reg_alpha': 1.4220124415290103, 'reg_lambda': 0.9482342125882117, 'subsample': 0.27104345640713867}
+2023-01-02 11:57:38,564 - INFO - log_loss: 0.0023340465053020886
+2023-01-02 11:57:38,564 - INFO - 77.52294039726257 seconds to train
+2023-01-02 11:57:39,160 - INFO - {'colsample_bytree': 0.3178658865507624, 'gamma': 4.276947392824565, 'learning_rate': 0.03388677271738439, 'max_depth': 3, 'min_child_weight': 3.2211004651388198, 'n_estimators': 618, 'reg_alpha': 2.6009012105896523, 'reg_lambda': 1.017510638954297, 'subsample': 0.7746426767482398}
+2023-01-02 11:58:41,247 - INFO - log_loss: 0.0022333824319362193
+2023-01-02 11:58:41,247 - INFO - 62.086265563964844 seconds to train
+2023-01-02 11:58:41,759 - INFO - {'colsample_bytree': 0.44393990923910687, 'gamma': 4.37188475024593, 'learning_rate': 0.025911899620889033, 'max_depth': 9, 'min_child_weight': 2.7844155775796526, 'n_estimators': 558, 'reg_alpha': 0.1752570245835694, 'reg_lambda': 1.0635813410445687, 'subsample': 0.602219712441646}
+2023-01-02 11:59:48,226 - INFO - log_loss: 0.0022034909162714895
+2023-01-02 11:59:48,226 - INFO - 66.46672821044922 seconds to train
+2023-01-02 11:59:48,850 - INFO - {'colsample_bytree': 0.38874134571157304, 'gamma': 4.831295105704961, 'learning_rate': 0.031081277532584585, 'max_depth': 3, 'min_child_weight': 1.5264504646747432, 'n_estimators': 698, 'reg_alpha': 3.1846964293264683, 'reg_lambda': 1.0400156698002643, 'subsample': 0.7913958532284044}
+2023-01-02 12:01:00,813 - INFO - log_loss: 0.0022605670132076583
+2023-01-02 12:01:00,813 - INFO - 71.96353816986084 seconds to train
+2023-01-02 12:01:01,564 - INFO - {'colsample_bytree': 0.4013029747075299, 'gamma': 4.949761821542371, 'learning_rate': 0.03161840861279652, 'max_depth': 3, 'min_child_weight': 1.6376599690531002, 'n_estimators': 713, 'reg_alpha': 3.0843308893448067, 'reg_lambda': 1.034599280530844, 'subsample': 0.7981698974529718}
+2023-01-02 12:02:15,948 - INFO - log_loss: 0.0022526542558140455
+2023-01-02 12:02:15,948 - INFO - 74.38374280929565 seconds to train
+2023-01-02 12:02:16,568 - INFO - {'colsample_bytree': 0.1595424297366823, 'gamma': 3.5481887007115427, 'learning_rate': 0.030306861069676616, 'max_depth': 9, 'min_child_weight': 0.4075038185041657, 'n_estimators': 1468, 'reg_alpha': 0.24666126526178167, 'reg_lambda': 1.0353563413780247, 'subsample': 0.7028137271289241}
+2023-01-02 12:07:05,376 - INFO - log_loss: 0.002183059464335573
+2023-01-02 12:07:05,376 - INFO - 288.8085732460022 seconds to train
+2023-01-02 12:07:05,960 - INFO - {'colsample_bytree': 0.28425594873544957, 'gamma': 0.911095616537218, 'learning_rate': 0.08056151611457675, 'max_depth': 6, 'min_child_weight': 4.348666490871208, 'n_estimators': 309, 'reg_alpha': 1.1884649525577813, 'reg_lambda': 1.0540456770592108, 'subsample': 0.060483794254431844}
+2023-01-02 12:07:19,329 - INFO - log_loss: 0.0027830657812891145
+2023-01-02 12:07:19,329 - INFO - 13.36901569366455 seconds to train
+2023-01-02 12:07:20,009 - INFO - {'colsample_bytree': 0.47649494407057635, 'gamma': 4.874892466910361, 'learning_rate': 0.02803965848660425, 'max_depth': 9, 'min_child_weight': 1.254352853985657, 'n_estimators': 818, 'reg_alpha': 3.1649700496363096, 'reg_lambda': 1.04070844943092, 'subsample': 0.784769889172245}
+2023-01-02 12:10:36,872 - INFO - log_loss: 0.0022197085220778123
+2023-01-02 12:10:36,872 - INFO - 196.86287307739258 seconds to train
+2023-01-02 12:10:37,449 - INFO - {'colsample_bytree': 0.9633574384919622, 'gamma': 2.7098826666667226, 'learning_rate': 0.05068726690400299, 'max_depth': 8, 'min_child_weight': 2.084205254489921, 'n_estimators': 429, 'reg_alpha': 2.322166033271813, 'reg_lambda': 1.0925456405575766, 'subsample': 0.13081150955837484}
+2023-01-02 12:11:14,970 - INFO - log_loss: 0.0024264802754507607
+2023-01-02 12:11:14,970 - INFO - 37.521573305130005 seconds to train
+2023-01-02 12:11:15,618 - INFO - {'colsample_bytree': 0.02641183816297249, 'gamma': 4.163585568126664, 'learning_rate': 0.03562553386873965, 'max_depth': 9, 'min_child_weight': 0.11376939581416701, 'n_estimators': 1024, 'reg_alpha': 0.6962679345218192, 'reg_lambda': 1.0669132077587402, 'subsample': 0.6009039204341197}
+2023-01-02 12:13:46,854 - INFO - log_loss: 0.002485638942625047
+2023-01-02 12:13:46,854 - INFO - 151.23601174354553 seconds to train
+2023-01-02 12:13:47,422 - INFO - {'colsample_bytree': 0.6289522333869981, 'gamma': 1.2516838713092782, 'learning_rate': 0.012363472782443846, 'max_depth': 10, 'min_child_weight': 3.3752870211848998, 'n_estimators': 635, 'reg_alpha': 3.425116552751017, 'reg_lambda': 0.8970180049493951, 'subsample': 0.6356988203495658}
+2023-01-02 12:15:39,317 - INFO - log_loss: 0.0024371106052499523
+2023-01-02 12:15:39,317 - INFO - 111.89518904685974 seconds to train
+2023-01-02 12:15:39,927 - INFO - {'colsample_bytree': 0.13443753962780264, 'gamma': 3.97861311984184, 'learning_rate': 0.09846247639436269, 'max_depth': 1, 'min_child_weight': 3.9844893688669956, 'n_estimators': 1472, 'reg_alpha': 1.5922491760820612, 'reg_lambda': 1.0177972728606872, 'subsample': 0.6727844759946662}
+2023-01-02 12:17:00,248 - INFO - log_loss: 0.0023197234371553827
+2023-01-02 12:17:00,251 - INFO - 80.32359313964844 seconds to train
+2023-01-02 12:17:01,006 - INFO - {'colsample_bytree': 0.3755476731425823, 'gamma': 4.994783133581239, 'learning_rate': 0.03138610699665287, 'max_depth': 9, 'min_child_weight': 1.519496813483256, 'n_estimators': 789, 'reg_alpha': 3.257406351552719, 'reg_lambda': 1.0435906452749308, 'subsample': 0.9172558401005578}
+2023-01-02 12:19:36,009 - INFO - log_loss: 0.0022285234549080635
+2023-01-02 12:19:36,009 - INFO - 155.00236010551453 seconds to train
+2023-01-02 12:19:36,633 - INFO - {'colsample_bytree': 0.37652023589078565, 'gamma': 4.9952504711509835, 'learning_rate': 0.029872538188459762, 'max_depth': 3, 'min_child_weight': 1.4809001899810073, 'n_estimators': 727, 'reg_alpha': 3.3569969738619125, 'reg_lambda': 1.1633901609002002, 'subsample': 0.9641387280674067}
+2023-01-02 12:21:02,442 - INFO - log_loss: 0.002250287140353197
+2023-01-02 12:21:02,442 - INFO - 85.80848431587219 seconds to train
+2023-01-02 12:21:03,089 - INFO - {'colsample_bytree': 0.6008950155035364, 'gamma': 2.007705255078704, 'learning_rate': 0.019838186828123515, 'max_depth': 9, 'min_child_weight': 2.2194501349593905, 'n_estimators': 500, 'reg_alpha': 2.59647802083309, 'reg_lambda': 1.05235170687823, 'subsample': 0.7089033072367874}
+2023-01-02 12:22:43,049 - INFO - log_loss: 0.002264462369761814
+2023-01-02 12:22:43,049 - INFO - 99.9603202342987 seconds to train
+2023-01-02 12:22:43,772 - INFO - {'colsample_bytree': 0.12940461493286504, 'gamma': 4.973771251902428, 'learning_rate': 0.03023080357680736, 'max_depth': 3, 'min_child_weight': 1.1143131442702852, 'n_estimators': 283, 'reg_alpha': 3.414373127591954, 'reg_lambda': 1.0301872681241726, 'subsample': 0.94613603942778}
+2023-01-02 12:23:15,596 - INFO - log_loss: 0.0027624035876446505
+2023-01-02 12:23:15,597 - INFO - 31.824536323547363 seconds to train
+2023-01-02 12:23:16,266 - INFO - {'colsample_bytree': 0.3052517716583231, 'gamma': 4.984590842610419, 'learning_rate': 0.021616904847320012, 'max_depth': 9, 'min_child_weight': 3.0007903244874448, 'n_estimators': 670, 'reg_alpha': 3.9019143773280347, 'reg_lambda': 1.2173576253871237, 'subsample': 0.9898461735072412}
+2023-01-02 12:25:03,157 - INFO - log_loss: 0.002264384709446151
+2023-01-02 12:25:03,157 - INFO - 106.89117455482483 seconds to train
+2023-01-02 12:25:03,767 - INFO - {'colsample_bytree': 0.22756561774116218, 'gamma': 3.5481887007115427, 'learning_rate': 0.036222172419734334, 'max_depth': 9, 'min_child_weight': 0.09803334995826773, 'n_estimators': 938, 'reg_alpha': 4.3559555098992915, 'reg_lambda': 1.0007027022413146, 'subsample': 0.602219712441646}
+2023-01-02 12:27:50,978 - INFO - log_loss: 0.002239087897132874
+2023-01-02 12:27:50,978 - INFO - 167.21078872680664 seconds to train
+2023-01-02 12:27:51,576 - INFO - {'colsample_bytree': 0.2558403695932241, 'gamma': 3.3529748600663045, 'learning_rate': 0.043442019142360705, 'max_depth': 9, 'min_child_weight': 0.3487837765547456, 'n_estimators': 980, 'reg_alpha': 0.07649084034370825, 'reg_lambda': 1.0670918897634516, 'subsample': 0.8510900431782155}
+2023-01-02 12:31:35,949 - INFO - log_loss: 0.0021013553867141876
+2023-01-02 12:31:35,949 - INFO - 224.37269163131714 seconds to train
+2023-01-02 12:31:36,677 - INFO - {'colsample_bytree': 0.48844908621625693, 'gamma': 3.831546711039621, 'learning_rate': 0.042564278362554074, 'max_depth': 9, 'min_child_weight': 0.33747816408801357, 'n_estimators': 926, 'reg_alpha': 0.17479448288621605, 'reg_lambda': 0.9958058844648551, 'subsample': 0.5378305471583579}
+2023-01-02 12:35:25,676 - INFO - log_loss: 0.0020764855986251385
+2023-01-02 12:35:25,677 - INFO - 228.99989485740662 seconds to train
+2023-01-02 12:35:26,321 - INFO - {'colsample_bytree': 0.5028752933742072, 'gamma': 3.769691955068995, 'learning_rate': 0.05630092728923861, 'max_depth': 9, 'min_child_weight': 0.6307879274567982, 'n_estimators': 860, 'reg_alpha': 0.05274853541140474, 'reg_lambda': 0.9935392774394272, 'subsample': 0.847499353990905}
+2023-01-02 12:39:59,284 - INFO - log_loss: 0.002151319584873331
+2023-01-02 12:39:59,284 - INFO - 272.96324729919434 seconds to train
+2023-01-02 12:39:59,887 - INFO - {'colsample_bytree': 0.5164376794207106, 'gamma': 3.9073436748026342, 'learning_rate': 0.04291421366776384, 'max_depth': 9, 'min_child_weight': 0.6965504140407284, 'n_estimators': 911, 'reg_alpha': 0.0646703465753537, 'reg_lambda': 1.0664852748747076, 'subsample': 0.8832582019402677}
+2023-01-02 12:44:39,605 - INFO - log_loss: 0.0021821104242531393
+2023-01-02 12:44:39,606 - INFO - 279.7185089588165 seconds to train
+2023-01-02 12:44:39,619 - INFO - ----- Training Final Model -----
+2023-01-02 12:50:16,968 - INFO - ----- Generating train Data Metrics -----
+2023-01-02 12:50:17,580 - INFO - Plotted Precision/Recall vs Threshold (train data)
+2023-01-02 12:50:17,930 - INFO - Plotted Precision vs Recall (train data)
+2023-01-02 12:50:18,121 - INFO - Plotted ROC (train data)
+2023-01-02 12:50:18,282 - INFO - Plotted Detection Error Tradeoff (train data)
+2023-01-02 12:50:18,701 - INFO - Plotted Score Histogram (train data)
+2023-01-02 12:50:19,055 - INFO - Generated threshold performance table (train data)
+2023-01-02 12:50:19,133 - INFO - Generated metrics table (train data)
+2023-01-02 12:50:19,134 - INFO - ----- Generating other Data Metrics -----
+2023-01-02 12:50:19,381 - INFO - Plotted Precision/Recall vs Threshold (other data)
+2023-01-02 12:50:19,534 - INFO - Plotted Precision vs Recall (other data)
+2023-01-02 12:50:19,682 - INFO - Plotted ROC (other data)
+2023-01-02 12:50:19,908 - INFO - Plotted Detection Error Tradeoff (other data)
+2023-01-02 12:50:20,473 - INFO - Plotted Score Histogram (other data)
+2023-01-02 12:50:20,802 - INFO - Generated threshold performance table (other data)
+2023-01-02 12:50:20,816 - INFO - Generated metrics table (other data)
+2023-01-02 12:50:20,817 - INFO - ----- Generating test Data Metrics -----
+2023-01-02 12:50:21,290 - INFO - Plotted Precision/Recall vs Threshold (test data)
+2023-01-02 12:50:21,496 - INFO - Plotted Precision vs Recall (test data)
+2023-01-02 12:50:21,763 - INFO - Plotted ROC (test data)
+2023-01-02 12:50:21,921 - INFO - Plotted Detection Error Tradeoff (test data)
+2023-01-02 12:50:22,307 - INFO - Plotted Score Histogram (test data)
+2023-01-02 12:50:22,514 - INFO - Generated threshold performance table (test data)
+2023-01-02 12:50:22,540 - INFO - Generated metrics table (test data)
+2023-01-02 12:50:22,541 - INFO - ----- Generating validation Data Metrics -----
+2023-01-02 12:50:22,951 - INFO - Plotted Precision/Recall vs Threshold (validation data)
+2023-01-02 12:50:23,154 - INFO - Plotted Precision vs Recall (validation data)
+2023-01-02 12:50:23,332 - INFO - Plotted ROC (validation data)
+2023-01-02 12:50:23,504 - INFO - Plotted Detection Error Tradeoff (validation data)
+2023-01-02 12:50:23,918 - INFO - Plotted Score Histogram (validation data)
+2023-01-02 12:50:24,151 - INFO - Generated threshold performance table (validation data)
+2023-01-02 12:50:24,177 - INFO - Generated metrics table (validation data)
+2023-01-02 12:50:24,919 - INFO - Generated Kolmogorov-Smirnov (KS) Statistic table
+2023-01-02 12:50:24,929 - INFO - ----- Generating XGBoost Metrics -----
+2023-01-02 12:50:25,418 - INFO - Plotted n_estimators vs auc
+2023-01-02 12:50:25,697 - INFO - Plotted n_estimators vs aucpr
+2023-01-02 12:50:25,921 - INFO - Plotted n_estimators vs error
+2023-01-02 12:50:26,162 - INFO - Plotted n_estimators vs logloss
+2023-01-02 12:50:26,171 - INFO - Generated n_estimators vs metrics table (train data)
+2023-01-02 12:50:26,178 - INFO - Generated n_estimators vs metrics table (other data)
+2023-01-02 12:50:26,185 - INFO - Generated n_estimators vs metrics table (test data)
+2023-01-02 12:50:26,192 - INFO - Generated n_estimators vs metrics table (validation data)
+2023-01-02 12:50:26,197 - INFO - Generated optimal n_estimators table
+2023-01-02 12:50:26,197 - INFO - ----- Generating Permutation Feature Importances -----
+2023-01-02 12:50:26,198 - INFO - running permutation importance on train data
+2023-01-02 12:51:41,535 - INFO - running permutation importance on other data
+2023-01-02 12:51:47,226 - INFO - running permutation importance on test data
+2023-01-02 12:52:21,096 - INFO - running permutation importance on validation data
+2023-01-02 12:52:53,458 - INFO - ----- Generating Shap Charts -----
+2023-01-02 12:52:53,459 - INFO - Plotting train partial dependence plots
+2023-01-02 12:57:47,796 - INFO - Plotting train scatter plots
+2023-01-02 13:03:59,418 - INFO - Plotting train beeswarm plot
+2023-01-02 13:04:20,950 - INFO - Plotting train bar plots
+2023-01-02 13:04:23,316 - INFO - Plotting other partial dependence plots
+2023-01-02 13:05:30,691 - INFO - Plotting other scatter plots
+2023-01-02 13:06:34,688 - INFO - Plotting other beeswarm plot
+2023-01-02 13:06:37,275 - INFO - Plotting other bar plots
+2023-01-02 13:06:38,688 - INFO - Plotting test partial dependence plots
+2023-01-02 13:11:32,257 - INFO - Plotting test scatter plots
+2023-01-02 13:17:34,398 - INFO - Plotting test beeswarm plot
+2023-01-02 13:17:55,597 - INFO - Plotting test bar plots
+2023-01-02 13:17:57,859 - INFO - Plotting validation partial dependence plots
+2023-01-02 13:22:17,239 - INFO - Plotting validation scatter plots
+2023-01-02 13:28:04,373 - INFO - Plotting validation beeswarm plot
+2023-01-02 13:28:23,079 - INFO - Plotting validation bar plots
+2023-01-02 13:28:24,537 - INFO - ----- Generating PSI -----
+2023-01-02 13:28:25,248 - INFO - ----- Generating CSI -----
+2023-01-02 13:28:31,473 - INFO - ----- Generating VIF -----
+2023-01-02 13:28:53,470 - INFO - ----- Generating WOE and IV -----
+2023-01-02 13:28:53,470 - INFO - generating woe and iv for train dataset
+2023-01-02 13:28:54,829 - INFO - generating woe and iv for other dataset
+2023-01-02 13:28:55,327 - INFO - generating woe and iv for test dataset
+2023-01-02 13:28:56,187 - INFO - generating woe and iv for validation dataset
+2023-01-02 13:28:56,931 - INFO - ----- Generating Correlation Charts -----
+2023-01-02 13:28:56,931 - INFO - generating correlations for train dataset
+2023-01-02 13:28:58,741 - INFO - generating correlations for other dataset
+2023-01-02 13:29:00,107 - INFO - generating correlations for test dataset
+2023-01-02 13:29:01,511 - INFO - generating correlations for validation dataset
+2023-01-02 13:29:02,923 - INFO - ----- Generating XGBoost Feature Importances -----
+2023-01-02 13:29:02,931 - INFO - ----- Generating Scores -----
+2023-01-02 13:29:03,662 - INFO - Saved train scores to Experiments\1.0.1-20230102-114944\scores/train_scores.csv
+2023-01-02 13:29:03,946 - INFO - Saved validation scores to Experiments\1.0.1-20230102-114944\scores/validation_scores.csv
+2023-01-02 13:29:04,288 - INFO - Saved test scores to Experiments\1.0.1-20230102-114944\scores/test_scores.csv
+2023-01-02 13:29:04,346 - INFO - Saved other scores to Experiments\1.0.1-20230102-114944\scores/other_scores.csv
+2023-01-02 13:29:04,346 - INFO - ----- Calibrating Model -----
+2023-01-02 13:29:05,155 - INFO - Plotted Calibration Curves (train data)
+2023-01-02 13:29:06,248 - INFO - Plotted Calibration Curves (other data)
+2023-01-02 13:29:07,281 - INFO - Plotted Calibration Curves (test data)
+2023-01-02 13:29:08,259 - INFO - Plotted Calibration Curves (validation data)
+2023-01-02 13:29:08,784 - INFO - ----- Generating train Data Metrics -----
+2023-01-02 13:29:08,976 - INFO - Plotted Precision/Recall vs Threshold (train data)
+2023-01-02 13:29:09,188 - INFO - Plotted Precision vs Recall (train data)
+2023-01-02 13:29:09,312 - INFO - Plotted ROC (train data)
+2023-01-02 13:29:09,419 - INFO - Plotted Detection Error Tradeoff (train data)
+2023-01-02 13:29:09,724 - INFO - Plotted Score Histogram (train data)
+2023-01-02 13:29:09,842 - INFO - Generated threshold performance table (train data)
+2023-01-02 13:29:09,905 - INFO - Generated metrics table (train data)
+2023-01-02 13:29:09,905 - INFO - ----- Generating other Data Metrics -----
+2023-01-02 13:29:09,984 - INFO - Plotted Precision/Recall vs Threshold (other data)
+2023-01-02 13:29:10,080 - INFO - Plotted Precision vs Recall (other data)
+2023-01-02 13:29:10,171 - INFO - Plotted ROC (other data)
+2023-01-02 13:29:10,262 - INFO - Plotted Detection Error Tradeoff (other data)
+2023-01-02 13:29:10,503 - INFO - Plotted Score Histogram (other data)
+2023-01-02 13:29:10,598 - INFO - Generated threshold performance table (other data)
+2023-01-02 13:29:10,606 - INFO - Generated metrics table (other data)
+2023-01-02 13:29:10,606 - INFO - ----- Generating test Data Metrics -----
+2023-01-02 13:29:10,724 - INFO - Plotted Precision/Recall vs Threshold (test data)
+2023-01-02 13:29:10,856 - INFO - Plotted Precision vs Recall (test data)
+2023-01-02 13:29:10,963 - INFO - Plotted ROC (test data)
+2023-01-02 13:29:11,124 - INFO - Plotted Detection Error Tradeoff (test data)
+2023-01-02 13:29:11,473 - INFO - Plotted Score Histogram (test data)
+2023-01-02 13:29:11,589 - INFO - Generated threshold performance table (test data)
+2023-01-02 13:29:11,605 - INFO - Generated metrics table (test data)
+2023-01-02 13:29:11,605 - INFO - ----- Generating validation Data Metrics -----
+2023-01-02 13:29:11,723 - INFO - Plotted Precision/Recall vs Threshold (validation data)
+2023-01-02 13:29:11,836 - INFO - Plotted Precision vs Recall (validation data)
+2023-01-02 13:29:11,947 - INFO - Plotted ROC (validation data)
+2023-01-02 13:29:12,047 - INFO - Plotted Detection Error Tradeoff (validation data)
+2023-01-02 13:29:12,303 - INFO - Plotted Score Histogram (validation data)
+2023-01-02 13:29:12,426 - INFO - Generated threshold performance table (validation data)
+2023-01-02 13:29:12,443 - INFO - Generated metrics table (validation data)
+2023-01-02 13:29:12,492 - INFO - Generated Kolmogorov-Smirnov (KS) Statistic table

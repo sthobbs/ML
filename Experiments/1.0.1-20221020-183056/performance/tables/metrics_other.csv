@@ -1,6 +1,0 @@
-Metric,Value
-ROC AUC,0.9982738780207135
-Precision Recall AUC,0.6948275862068964
-Average Precision,0.7
-Log Loss (Cross Entropy),0.0017000483106064139
-Brier Score Loss,0.00032531217824414814
