@@ -41,7 +41,7 @@ def metric_score(y_true, y_score, metric: str) -> float:
 
     # Area under the precision-recall curve
     elif metric == 'aucpr':
-        precision, recall, thresholds = precision_recall_curve(y_true, y_score)
+        precision, recall, _ = precision_recall_curve(y_true, y_score)
         score = auc(recall, precision)
 
     # Area under the ROC curve
@@ -439,17 +439,20 @@ class ModelEvaluate():
 
         assert 0 < increment < 1, f'increment={increment}, it should be >0 and <=1'
 
-        # get data from auxiliary fields to create additional metrics
+        # get data from numeric auxiliary fields to create additional metrics
+        numeric_aux_fields = []
         if self.aux_fields:
             idx = [i for i, (_, _, name) in enumerate(self.datasets) if name == dataset_name][0]
-            aux_data = self.datasets[idx][0][self.aux_fields]
+            numeric_fields = set(self.datasets[idx][0].select_dtypes([np.number]).columns)
+            numeric_aux_fields = [f for f in self.aux_fields if f in numeric_fields]
+            aux_data = self.datasets[idx][0][numeric_aux_fields]
 
         # initialize performance tracking table
         performance = []
 
         # make sorted dataframe of data, with extra fields
         df = pd.DataFrame({'y_true': y_true, 'y_score': y_score})
-        for f in self.aux_fields:
+        for f in numeric_aux_fields:
             df[f] = aux_data[f] * df['y_true']  # aux fields only counted for positive class
         df = df.sort_values('y_score').reset_index(drop=True)
 
@@ -458,7 +461,7 @@ class ModelEvaluate():
         fp = len(df) - tp
         fn = 0
         tn = 0
-        aux_tp = {f: df[f].sum() for f in self.aux_fields}  # tp sum for aux fields
+        aux_tp = {f: df[f].sum() for f in numeric_aux_fields}  # tp sum for aux fields
         idx_lower = 0  # threshold lower bound index
         for threshold in tqdm(np.arange(0, 1, increment)):
             # update performance dataframe
@@ -472,7 +475,7 @@ class ModelEvaluate():
             performance.append(row)
             # find index of next threshold and update counts/sums
             idx_upper = df['y_score'].searchsorted(threshold + increment)  # index of first value >= threshold + increment
-            df_subset = df.loc[idx_lower: idx_upper-1, ['y_true'] + self.aux_fields]  # records in idx range
+            df_subset = df.loc[idx_lower: idx_upper-1, ['y_true'] + numeric_aux_fields]  # records in idx range
             df_pos = df_subset.loc[df_subset['y_true'] == 1]  # postive class records in idx range
             pos_count = len(df_pos)  # number of positive cases in threshold range
             neg_count = idx_upper - idx_lower - pos_count  # number of negative cases in threshold range
@@ -486,7 +489,7 @@ class ModelEvaluate():
 
         # convert to dataframe
         performance_df = pd.DataFrame.from_records(performance)
-        columns = ['threshold', 'tp', 'fp', 'fn', 'tn'] + self.aux_fields
+        columns = ['threshold', 'tp', 'fp', 'fn', 'tn'] + numeric_aux_fields
         performance_df = performance_df.reindex(columns=columns)  # reorder columns
 
         # combine fields
@@ -500,9 +503,9 @@ class ModelEvaluate():
         performance_df.reset_index(drop=True)
 
         # add weighted recall for aux fields & rename aux fields
-        for f in self.aux_fields:
+        for f in numeric_aux_fields:
             performance_df[f"{f}_weighted_recall"] = performance_df[f] / performance_df.at[0, f]
-        performance_df.rename(columns={f: f"{f}_tp_sum" for f in self.aux_fields}, inplace=True)
+        performance_df.rename(columns={f: f"{f}_tp_sum" for f in numeric_aux_fields}, inplace=True)
 
         # save file
         performance_df.to_csv(f'{self.tables_subdir}/threshold_vs_metrics_{dataset_name}.csv', index=False)
