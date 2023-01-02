@@ -596,7 +596,7 @@ class Experiment():
         for name, file_pattern in self.data_file_patterns.items():
             data_path = self.data_dir / file_pattern
             self.logger.info(f"loading {name} data from {data_path}")
-            df = dd.read_csv(data_path, usecols=fields)
+            df = dd.read_csv(data_path, usecols=fields, assume_missing=True)
             df = df.compute()
             df = shuffle(df, random_state=self.seed)
             self.data[name] = {
