@@ -19,3 +19,12 @@ exp = XGBExperiment(config_path)
 exp.run()
 ```
 See config.yaml for details on how to configure an experiment.
+
+---------------
+#### For the initial setup, run the following commands to create a new virtual environment, install dependencies, and install the local package:
+conda create --name exp python=3.12  
+conda activate exp  
+pip install -r requirements_dev.txt  
+pip install -r requirements.txt  
+pip install -e .  # assuming your current directory is the one with pyproject.toml
+

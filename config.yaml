@@ -196,7 +196,6 @@ hyperparameters:
   reg_lambda: 1
   reg_alpha: 0
   scale_pos_weight: 1
-  use_label_encoder: False
   # early_stopping_rounds: 50 # need XGBoost v1.6.0
   eval_metric: [auc, aucpr, error, logloss]  # last metric is used for early stopping (if applicable)
 # hyperparameters

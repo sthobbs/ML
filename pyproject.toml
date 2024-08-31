@@ -1,9 +1,13 @@
 [build-system]
-requires = ["setuptools==49.2.1"]
+requires = ["setuptools == 74.0.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "experiment"
+version = "1.0.1"
+description = "Project to run ML experiments"
+requires-python = ">=3.8"
+readme = "README.md"
 
 [tool.pytest.ini_options]
 addopts = "--cov=experiment"

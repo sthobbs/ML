@@ -59,7 +59,7 @@ class ModelExplain():
             self.output_dir.mkdir(parents=True, exist_ok=True)
 
         # Set plot context
-        self.plot_context = 'seaborn-darkgrid'
+        self.plot_context = 'seaborn-v0_8-darkgrid'
 
         # Set up logger
         if logger is None:

@@ -113,7 +113,7 @@ class ModelEvaluate():
         self.aux_fields = aux_fields
 
         # Set plot context
-        self.plot_context = 'seaborn-darkgrid'
+        self.plot_context = 'seaborn-v0_8-darkgrid'
 
         # Set up logger
         if logger is None:
@@ -374,7 +374,7 @@ class ModelEvaluate():
                   fnr: np.ndarray,
                   dataset_name: str) -> None:
         """
-        Plot ROC curve.
+        Plot detection error tradeoff curve.
 
         Parameters
         ----------

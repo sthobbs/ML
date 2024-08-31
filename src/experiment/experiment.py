@@ -22,6 +22,8 @@ from typing import Union, Optional, Dict, Tuple
 from experiment.model_evaluate import ModelEvaluate, metric_score
 from experiment.model_explain import ModelExplain
 from experiment.model_calibrate import ModelCalibrate
+import warnings
+np.warnings = warnings  # workaround for hyperopt/numpy incompatability
 ProgressBar().register()
 
 
@@ -264,7 +266,7 @@ class Experiment():
                 raise ConfigError("performance_increment must be between 0 and 1")
 
         # check that features is a list of length >= 1
-        if type(self.config["features"]) != list or len(self.config["features"]) < 1:
+        if type(self.config["features"]) is not list or len(self.config["features"]) < 1:
             raise ConfigError("features must be a list with len >= 1")
 
         # specify valid supervised and unsupervised models
