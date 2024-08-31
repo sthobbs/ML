@@ -8,4 +8,5 @@ __pycache__/
 .idea
 tmp_experiments/
 .tox/
-*.DS_score
+**/.DS_Store
+TODO.py

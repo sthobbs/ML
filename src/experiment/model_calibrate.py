@@ -154,7 +154,10 @@ class ModelCalibrate():
 
         # Evaluate model on calibrated score and generate performance charts
         datasets = [(y_cal, y, n) for y_cal, (X, y, n) in zip(calibrated_scores, self.datasets)]
-        model_eval = ModelEvaluate(self.calibrator, datasets, performance_dir, logger=self.logger)
+        model_eval = ModelEvaluate(model=self.calibrator,
+                                   datasets=datasets,
+                                   output_dir=performance_dir,
+                                   logger=self.logger)
         model_eval.binary_evaluate(increment)
 
     def _plot_calibration_curve(self,

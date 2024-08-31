@@ -860,11 +860,11 @@ class Experiment():
 
         # Instantiate ModelEvaluate object
         datasets = [(self.data[n]['X'], self.data[n]['y'], n) for n in self.dataset_names]
-        self.model_eval = ModelEvaluate(self.model,
-                                        datasets,
-                                        self.performance_dir,
-                                        self.aux_fields,
-                                        self.logger)
+        self.model_eval = ModelEvaluate(model=self.model,
+                                        datasets=datasets,
+                                        output_dir=self.performance_dir,
+                                        aux_fields=self.aux_fields,
+                                        logger=self.logger)
 
         # generate binary classification metrics
         if self.binary_classification:

@@ -267,14 +267,14 @@ class ModelExplain():
         scores2_bins = pd.cut(scores2, bins=bins, labels=range(n_bins))
         df1 = pd.DataFrame({'score1': scores1, 'bin': scores1_bins})
         df2 = pd.DataFrame({'score2': scores2, 'bin': scores2_bins})
-        grp1 = df1.groupby('bin').count()['score1']
-        grp2 = df2.groupby('bin').count()['score2']
+        grp1 = df1.groupby('bin', observed=False).count()['score1']
+        grp2 = df2.groupby('bin', observed=False).count()['score2']
         grp1_rate = (grp1 / sum(grp1)).rename('rate1')
         grp2_rate = (grp2 / sum(grp2)).rename('rate2')
         grp_rates = pd.concat([grp1_rate, grp2_rate], axis=1).fillna(0)
 
         # add a small value when the percent is zero
-        grp_rates = grp_rates.applymap(lambda x: eps if x == 0 else x)
+        grp_rates = grp_rates.map(lambda x: eps if x == 0 else x)
 
         # calculate psi
         psi_vals = (grp_rates['rate1'] - grp_rates['rate2']) * np.log(grp_rates['rate1'] / grp_rates['rate2'])
@@ -430,7 +430,7 @@ class ModelExplain():
                 df = pd.DataFrame({'label': y, 'bin': value_bins})
 
                 # get counts
-                df = df.groupby(['bin']).agg({'label': [sum, len]})['label']
+                df = df.groupby(['bin'], observed=False).agg({'label': ["sum", len]})['label']
                 df['cnt_0'] = df['len'] - df['sum']  # count of 0-label events
                 df.rename(columns={'sum': 'cnt_1'}, inplace=True)  # count of 1-label events
 

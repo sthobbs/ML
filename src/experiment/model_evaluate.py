@@ -97,8 +97,7 @@ class ModelEvaluate():
                 logger.
         """
 
-        if model is not None:
-            self.model = model
+        self.model = model
         if datasets is None:
             datasets = []
         self.datasets = datasets
@@ -106,6 +105,7 @@ class ModelEvaluate():
 
         # Make directories
         if output_dir:
+            print('output_dir = ', output_dir)
             self.output_dir = Path(output_dir)
             self.plots_subdir = self.output_dir / 'plots'
             self.tables_subdir = self.output_dir / 'tables'
@@ -173,6 +173,9 @@ class ModelEvaluate():
             roc_auc = auc(fpr, tpr)  # same as sklearn.metrics.roc_auc_score(y_true, y_score)
             self._plot_roc(fpr, tpr, dataset_name, roc_auc)
 
+            # Generate CAP Curve
+            accuracy_ratio = self._plot_cap(y_true, y_score, dataset_name)
+
             # Generate Detection Error Tradeoff Curve
             fpr, fnr, _ = det_curve(y_true, y_score)
             self._plot_det(fpr, fnr, dataset_name)
@@ -184,7 +187,7 @@ class ModelEvaluate():
             self._threshold_table(y_true, y_score, dataset_name, increment=increment)
 
             # Generate Metrics Table
-            self._metrics_table(y_true, y_score, dataset_name, roc_auc, precision_recall_auc, average_precision)
+            self._metrics_table(y_true, y_score, dataset_name, roc_auc, precision_recall_auc, average_precision, accuracy_ratio)
 
         # Generate Kolmogorov-Smirnov (KS) Statistic
         self.ks_statistic()
@@ -325,15 +328,15 @@ class ModelEvaluate():
             plt.plot(recall, precision, 'b-')
             plt.xlim(-0.05, 1.05)
             plt.ylim(-0.05, 1.05)
+            plt.ylabel('Precision')
+            plt.xlabel('Recall')
+            plt.title(f'Precision vs Recall ({dataset_name} data)')
             plt.text(0.015, 0.02,
                      f"Average Precision:    \u2009\u2009\u2009{average_precision:.8f} \nPrecision Recall AUC: {precision_recall_auc:.8f}",
                      size=10, ha="left", va="bottom",
                      bbox=dict(boxstyle="round, rounding_size=0.2",
                                ec=(0.8, 0.8, 0.8, 1),
                                fc=(0.9176470588235294, 0.9176470588235294, 0.9490196078431372, 0.75)))
-            plt.ylabel('Precision')
-            plt.xlabel('Recall')
-            plt.title(f'Precision vs Recall ({dataset_name} data)')
             plt.savefig(f'{self.plots_subdir}/precision_vs_recall_{dataset_name}.png')
             self.logger.info(f'Plotted Precision vs Recall ({dataset_name} data)')
         plt.close()
@@ -400,6 +403,67 @@ class ModelEvaluate():
             plt.savefig(f'{self.plots_subdir}/det_{dataset_name}.png')
             self.logger.info(f'Plotted Detection Error Tradeoff ({dataset_name} data)')
         plt.close()
+
+
+    def _plot_cap(self, y_true, y_score, dataset_name: str) -> float:
+        """
+        Plot cumulative accuracy profile curve and return accuracy ratio.
+
+        Parameters
+        ----------
+            y_true : array-like of shape (n_sample,)
+                ground truth labels.
+            y_score : array-like of shape (n_sample,)
+                model scores.
+            dataset_name : str
+                name of dataset to generate plot of
+        """
+
+        total_cnt = len(y_true)
+        pos_cnt = y_true.sum()
+
+        plt.figure()
+        with plt.style.context(self.plot_context):
+
+            # plot perfect model CAP
+            x_perfect = [0, pos_cnt, total_cnt]
+            y_perfect = [0, pos_cnt, pos_cnt]
+            plt.plot(x_perfect, y_perfect, c='grey', label='Perfect Model') 
+
+            # plot actual model CAP
+            ordered_y_true = [y for _, y in sorted(zip(y_score, y_true), reverse=True)] 
+            x_actual = np.arange(0, total_cnt + 1)
+            y_actual = np.append([0], np.cumsum(ordered_y_true))
+            plt.plot(x_actual, y_actual, c='b', label='Actual Model') 
+
+            # plot random model CAP
+            x_random = [0, total_cnt]
+            y_random = [0, pos_cnt]
+            plt.plot(x_random, y_random, 'k--', label='Random Model')
+
+            # compute accuracy ratio
+            random_area = auc(x_random, y_random)  # area under random model
+            perfect_area = auc(x_perfect, y_perfect)  # area under perfect model
+            actual_area = auc(x_actual, y_actual)  # area under actual model
+            accuracy_ratio = (actual_area - random_area) / (perfect_area - random_area)
+
+            # configure plot
+            plt.xlim(-0.05 * total_cnt, 1.05 * total_cnt)
+            plt.ylim(-0.05 * pos_cnt, 1.05 * pos_cnt)
+            plt.ylabel('Positive Events')
+            plt.xlabel('Events')
+            plt.title(f'CAP ({dataset_name} data)')
+            plt.legend(bbox_to_anchor=(0.94, 0.125), loc='lower right', borderaxespad=0, frameon=True)
+            plt.text(0.975 * total_cnt, 0.02 * pos_cnt, f"Accuracy Ratio: {accuracy_ratio:.8f}",
+                     size=10, ha="right", va="bottom",
+                     bbox=dict(boxstyle="round, rounding_size=0.2",
+                               ec=(0.8, 0.8, 0.8, 1),
+                               fc=(0.9176470588235294, 0.9176470588235294, 0.9490196078431372, 0.75)))
+            plt.savefig(f'{self.plots_subdir}/cap_{dataset_name}.png')
+            self.logger.info(f'Plotted CAP ({dataset_name} data)')
+        plt.close()
+
+        return accuracy_ratio
 
     def _plot_score_hist(self, y_true, y_score, dataset_name: str) -> None:
         """
@@ -523,8 +587,9 @@ class ModelEvaluate():
                        y_score,
                        dataset_name: str,
                        roc_auc: float,
-                       precision_recall_auc:
-                       float, average_precision: float) -> None:
+                       precision_recall_auc: float,
+                       average_precision: float,
+                       accuracy_ratio: float) -> None:
         """
         Generate table of metrics for binary classification model evaluation.
 
@@ -542,6 +607,8 @@ class ModelEvaluate():
                 area under the PR curve of the mode
             average_precision : float
                 average precision of the model
+            accuracy_ratio : float
+                accuracy ratio of the model
         """
 
         log_loss_ = log_loss(y_true, y_score)  # cross entropy
@@ -550,6 +617,7 @@ class ModelEvaluate():
             ('ROC AUC', roc_auc),
             ('Precision Recall AUC', precision_recall_auc),
             ('Average Precision', average_precision),
+            ('Accuracy Ratio', accuracy_ratio),
             ('Log Loss (Cross Entropy)', log_loss_),
             ('Brier Score Loss', brier_score),
         ]
