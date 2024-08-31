@@ -74,6 +74,7 @@ class ModelEvaluate():
                     Union[np.ndarray, pd.core.frame.DataFrame, pd.core.series.Series],
                     Union[np.ndarray, pd.core.frame.DataFrame, pd.core.series.Series],
                     str]]] = None,
+                 datasets_have_y_score: Optional[bool] = False,
                  output_dir: Optional[Union[str, Path]] = None,
                  aux_fields: Optional[List[str]] = None,
                  logger: Optional[logging.Logger] = None) -> None:
@@ -83,8 +84,11 @@ class ModelEvaluate():
             model :
                 scikit-learn classifier with a .predict_proba() method.
             datasets :
-                List of (X, y, dataset_name) triples.
+                List of (X, y, dataset_name) triples, or list of (y_score, y, dataset_name) triples
                 e.g. [(X_train, y_train, 'Train'), (X_val, y_val, 'Validation'), (X_test, y_test, 'Test')]
+            datasets_have_y_score :
+                True if datasets is a list of (y_score, y, dataset_name) triples,
+                False if datasets is a list of (X, y, dataset_name) triples, (default is False).
             output_dir : str, optional
                 string path to folder where output will be written.
             aux_fields : list, optional
@@ -98,6 +102,7 @@ class ModelEvaluate():
         if datasets is None:
             datasets = []
         self.datasets = datasets
+        self.datasets_have_y_score = datasets_have_y_score
 
         # Make directories
         if output_dir:
@@ -141,15 +146,17 @@ class ModelEvaluate():
                 threshold increment to use when checking performance on a sequence of thresholds
         """
 
-        assert self.model is not None, "self.model must not be None to run this method"
+        assert self.model is not None or self.datasets_have_y_score, \
+            "self.model must not be None to run this method, unless self.datasets_have_y_score is True"
         assert self.datasets is not None, "self.datasets must not be None to run this method"
         assert self.output_dir is not None, "self.output_dir must not be None to run this method"
         plt.close('all')
 
         for X, y_true, dataset_name in self.datasets:
             self.logger.info(f"----- Generating {dataset_name} Data Metrics -----")
-            y_score = self.model.predict_proba(X)
+            y_score = X if self.datasets_have_y_score else self.model.predict_proba(X)
             if y_score.ndim == 2:
+                assert y_score.shape[1] == 2, f'unexpected y_score shape: {y_score.shape}'
                 y_score = y_score[:, 1]
 
             # Generate Precision/Recall vs Threshold
@@ -558,8 +565,9 @@ class ModelEvaluate():
 
         # generate KS Statistic for each dataset
         for X, y_true, dataset_name in self.datasets:
-            y_score = self.model.predict_proba(X)
+            y_score = X if self.datasets_have_y_score else self.model.predict_proba(X)
             if y_score.ndim == 2:
+                assert y_score.shape[1] == 2, f'unexpected y_score shape: {y_score.shape}'
                 y_score = y_score[:, 1]
             ks_stat, p_value = ks_2samp(y_score[y_true == 0], y_score[y_true == 1])
             row = {'dataset': dataset_name, 'ks': ks_stat, 'p-value': p_value}
