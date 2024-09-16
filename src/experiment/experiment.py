@@ -910,6 +910,8 @@ class Experiment():
         if self.correlation:
             model_explain.gen_corr(self.corr_max_features)
 
+        model_explain.gen_summary_statistics()
+
         if isinstance(self.model, xgb.XGBModel):
             model_explain.xgb_explain()
 

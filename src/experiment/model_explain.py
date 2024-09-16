@@ -465,6 +465,7 @@ class ModelExplain():
             # turn divide by 0 warnings back on
             np.seterr(divide='warn')
 
+            # save woe and iv tables
             woe_df = pd.concat(woe_df_list)
             woe_df.to_csv(woe_dir/f'woe_{dataset_name}.csv', index=False)
 
@@ -631,6 +632,54 @@ class ModelExplain():
             plt.savefig(output_path, bbox_inches='tight')
             plt.close()
 
+    def gen_summary_statistics(self) -> None:
+        """
+        Generate summary statistics
+        """
+
+        self.logger.info("----- Generating Summary Statistics -----")
+
+        # make output directory
+        summary_statistics_dir = self.output_dir / 'summary_statistics'
+        summary_statistics_dir.mkdir(parents=True, exist_ok=True)
+
+        # iterate over datasets
+        for X, y, dataset_name in tqdm(self.datasets):
+
+            # concatenate features and labels
+            df = pd.concat([y, X], axis=1)
+
+            # compute basic summary statistics
+            n_nan = df.isna().sum()  # number of missing values
+            median = df.median()  # median
+            iqr = df.quantile(0.75) - df.quantile(0.25)  # interquartile range
+            n_outliers = (((df - median) / iqr).abs() > 2.22).sum()  # number of outliers (2.22 iqr is approx z-score of 3)
+            dfs = [
+                n_nan / len(df),  # missing data rate
+                n_nan,            # number of missing values
+                df.nunique(),     # number of unique values
+                df.mean(),        # mean
+                median,           # median
+                df.mode().T[0],   # mode
+                df.std(),         # std
+                df.min(),         # min
+                df.max(),         # max
+                iqr,              # interquartile range
+                n_outliers,       # number of outliers
+                df.skew(),        # skewness
+                df.kurtosis()     # kurtosis
+            ]
+
+            # combine results
+            columns = ['nan_rate', 'n_nan', 'n_unique', 'mean', 'median', 'mode', 'std', 'min', 'max', \
+                    'iqr', 'n_outliers', 'skewness', 'kurtosis']
+            summary_stats = pd.concat(dfs, axis=1, keys=columns)
+
+            # save basic summary statistics
+            summary_stats.to_csv(summary_statistics_dir / f'basic_summary_stats_{dataset_name}.csv')
+            self.logger.info(f'Generated basic summary stats for ({dataset_name} data)')
+
+
     def xgb_explain(self) -> None:
         """Generate model explanitory charts specific to XGBoost models."""
 
@@ -643,12 +692,14 @@ class ModelExplain():
         imps = [pd.Series(bstr.get_score(importance_type=t), name=t) for t in imp_types]
         df = pd.concat(imps, axis=1)  # dataframe of importances
         df = df.apply(lambda x: x / x.sum(), axis=0)  # normalize so each column sums to 1
+        
         # add in 0 importance features
         features = self.datasets[0][0].columns
         feats_series = pd.Series(index=features, name='temp', dtype='float64')
         df = pd.concat([df, feats_series], axis=1)
         df.drop(columns='temp', inplace=True)
         df.fillna(0, inplace=True)
+        
         # sort and save
         df.sort_values('gain', ascending=False, inplace=True)
         importance_dir = self.output_dir / "feature_importance"
