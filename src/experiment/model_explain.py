@@ -196,6 +196,10 @@ class ModelExplain():
         # check for valid input
         assert bin_type in {'fixed', 'quantiles'}, "bin_type must be in {'fixed', 'quantiles'}"
 
+        # make output directory
+        psi_csi_dir = self.output_dir / 'psi_csi'
+        psi_csi_dir.mkdir(parents=True, exist_ok=True)
+
         # intialize output list
         psi_list = []
 
@@ -226,8 +230,7 @@ class ModelExplain():
         psi_df = psi_df.reindex(columns=['dataset1', 'dataset2', 'psi'])  # reorder columns
 
         # save output to csv
-        self.output_dir.mkdir(exist_ok=True)
-        psi_df.to_csv(self.output_dir/'psi.csv', index=False)
+        psi_df.to_csv(psi_csi_dir/'psi.csv', index=False)
 
     def _psi_compare(self,
                      scores1: Union[np.ndarray, pd.core.series.Series],
@@ -300,6 +303,10 @@ class ModelExplain():
         # check for valid input
         assert bin_type in {'fixed', 'quantiles'}, "bin_type must be in {'fixed', 'quantiles'}"
 
+        # make output directory
+        psi_csi_dir = self.output_dir / 'psi_csi'
+        psi_csi_dir.mkdir(parents=True, exist_ok=True)
+
         # intialize output list
         csi_list = []
 
@@ -334,9 +341,8 @@ class ModelExplain():
         csi_df = csi_df.reindex(columns=['dataset1', 'dataset2', 'feature', 'csi'])  # reorder columns
 
         # save output to csv
-        self.output_dir.mkdir(exist_ok=True)
         csi_df.sort_values('csi', ascending=False, inplace=True)
-        csi_df.to_csv(self.output_dir/'csi_long.csv', index=False)
+        csi_df.to_csv(psi_csi_dir/'csi_long.csv', index=False)
 
         # convert csi dataframe to wide format
         csi_df['datasets'] = csi_df['dataset1'] + '-' + csi_df['dataset2']
@@ -348,7 +354,7 @@ class ModelExplain():
         csi_df.reset_index(inplace=True)
         csi_df['feature'] = pd.Categorical(csi_df['feature'], features)
         csi_df = csi_df.sort_values("feature").set_index("feature")
-        csi_df.to_csv(self.output_dir/'csi_wide.csv')
+        csi_df.to_csv(psi_csi_dir/'csi_wide.csv')
 
     def gen_vif(self) -> None:
         """
