@@ -147,10 +147,10 @@ class ModelCalibrate():
             output_path = f'{comparison_dir}/compare_{dataset_name}.png'
             self._plot_comparisons(y_true, y_score, y_cal, output_path)
 
-            # generate calibration mapping plot and table
-            fig_path = f'{comparison_dir}/score_mapping_{dataset_name}.png'
-            table_path = f'{comparison_dir}/mapping_table_{dataset_name}.csv'
-            self._calibration_mapping(fig_path, table_path)
+        # generate calibration mapping plot and table
+        fig_path = f'{comparison_dir}/score_mapping.png'
+        table_path = f'{comparison_dir}/mapping_table.csv'
+        self._calibration_mapping(fig_path, table_path)
 
         # Evaluate model on calibrated score and generate performance charts
         datasets = [(y_cal, y, n) for y_cal, (X, y, n) in zip(calibrated_scores, self.datasets)]
@@ -214,7 +214,7 @@ class ModelCalibrate():
             plt.subplot(1, 2, 2)
             plt.plot(prob_cal_score, prob_true)
             plt.plot([[0, 0], [1, 1]])
-            plt.title(f"Uncalibrated Curve for {dataset_name} Dataset", fontsize=fontsize)
+            plt.title(f"Calibrated Curve for {dataset_name} Dataset", fontsize=fontsize)
             plt.xlabel("Raw Score", fontsize=fontsize)
             plt.ylabel("Probability of TP", fontsize=fontsize)
             plt.savefig(output_path)
@@ -270,7 +270,7 @@ class ModelCalibrate():
             plt.xlabel('Recall', fontsize=fontsize)
             plt.ylabel('Precision', fontsize=fontsize)
             plt.title('Precision vs Recall', fontsize=fontsize)
-            plt.legend(loc="upper right")
+            plt.legend(loc="lower left")
 
             # plot Recall vs Score
             plt.subplot(1, 4, 3)
@@ -281,7 +281,7 @@ class ModelCalibrate():
             plt.xlabel('Score', fontsize=fontsize)
             plt.ylabel('Recall', fontsize=fontsize)
             plt.title('Recall vs Score', fontsize=fontsize)
-            plt.legend(loc="upper right")
+            plt.legend(loc="lower left")
 
             # plot Pecision vs Score
             plt.subplot(1, 4, 4)
@@ -311,7 +311,6 @@ class ModelCalibrate():
         """
 
         # score calibration mapping
-        increment = 0.0001
         score = np.arange(0, 1, increment)
         score_cal = self.calibrator.predict_proba(score)
         plt.plot(score, score_cal)
@@ -321,7 +320,7 @@ class ModelCalibrate():
         plt.savefig(fig_path)
         plt.close()
         df = pd.DataFrame({"score": score, "calibrated_score": score_cal})
-        df.to_csv(table_path, index=False)
+        df.to_csv(table_path, index=False, float_format='%.12g')
 
 
 class Calibrator():
