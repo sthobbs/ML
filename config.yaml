@@ -376,6 +376,14 @@ shap_sample: 50000
     # shap_sample is None => use all rows
 
 
+### Feature Distribution
+feature_distribution: True
+# feature_distribution
+  # not required, default False, type: boolean
+  # valid values: True, False
+  # meaning: True => generate feature distribution charts
+
+
 ### Population Stability Index
 psi: True
 psi_bin_type: fixed

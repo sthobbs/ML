@@ -137,6 +137,8 @@ class Experiment():
         self.shap_sample = self.config.get("shap_sample")
         if self.shap_sample is not None:
             self.shap_sample = int(self.shap_sample)
+        # Feature Distribution
+        self.feature_distribution = self.config.get("feature_distribution", False)
         # Population Stability Index
         self.psi = self.config.get("psi", False)
         self.psi_bin_type = self.config.get("psi_bin_type", "fixed")
@@ -217,10 +219,10 @@ class Experiment():
             'cross_validation', 'cv_folds', 'tuning_algorithm',
             'grid_search_n_jobs',  'tuning_iterations', 'tuning_parameters',
             'permutation_importance', 'perm_imp_metrics', 'perm_imp_n_repeats',
-            'shap', 'shap_sample', 'psi', 'psi_bin_type', 'psi_n_bins', 'csi',
-            'csi_bin_type', 'csi_n_bins', 'vif', 'woe_iv', 'woe_bin_type',
-            'woe_n_bins', 'correlation', 'corr_max_features', 'summary_stats',
-            'quantiles', 'top_n_value_counts', 'model_calibration',
+            'shap', 'shap_sample', 'feature_distribution','psi', 'psi_bin_type',
+            'psi_n_bins', 'csi', 'csi_bin_type', 'csi_n_bins', 'vif', 'woe_iv',
+            'woe_bin_type', 'woe_n_bins', 'correlation', 'corr_max_features',
+            'summary_stats', 'quantiles', 'top_n_value_counts', 'model_calibration',
             'calibration_type', 'calibration_train_dataset_name'
         }
         valid_keys = required_keys.union(other_valid_keys)
@@ -468,8 +470,8 @@ class Experiment():
 
         # check non-required boolean keys
         boolean_keys = {
-            'cross_validation', 'permutation_importance', 'shap', 'psi', 'csi',
-            'vif', 'woe_iv', 'correlation', 'summary_stats', 'model_calibration'
+            'cross_validation', 'permutation_importance', 'shap', 'feature_distribution',
+            'psi', 'csi', 'vif', 'woe_iv', 'correlation', 'summary_stats', 'model_calibration'
         }
         for k in boolean_keys:
             if self.config.get(k) not in {True, False, None}:
@@ -898,7 +900,10 @@ class Experiment():
 
         # Instantiate ModelExplain object
         datasets = [(self.data[n]['X'], self.data[n]['y'], n) for n in self.dataset_names]
-        model_explain = ModelExplain(self.model, datasets, self.explain_dir, self.logger)
+        model_explain = ModelExplain(model=self.model,
+                                     datasets=datasets,
+                                     output_dir=self.explain_dir,
+                                     logger=self.logger)
 
         # Generate Permutation Feature Importance Tables
         if self.permutation_importance:
@@ -909,6 +914,10 @@ class Experiment():
         # Generate Shap Charts
         if self.shap:
             model_explain.plot_shap(self.shap_sample)
+
+        # Generate Feature Distribution Charts
+        if self.feature_distribution:
+            model_explain.plot_feature_distribution()
 
         # Generate PSI Table
         if self.psi:

@@ -32,6 +32,7 @@ class ModelExplain():
                     Union[pd.core.frame.DataFrame, pd.core.series.Series],
                     str]]] = None,
                  output_dir: Optional[Union[str, Path]] = None,
+                 binary_classification: Optional[bool] = None,
                  logger: Optional[logging.Logger] = None) -> None:
         """
         Parameters
@@ -48,11 +49,21 @@ class ModelExplain():
                 logger.
         """
 
+        # check for valid input
+        assert binary_classification is None or isinstance(binary_classification, bool), \
+            "binary_classification must be a boolean or None"
+
         if model is not None:
             self.model = model
         if datasets is None:
             datasets = []
         self.datasets = datasets
+
+        # Determine if binary classification based on datasets
+        if binary_classification is None:
+            self.binary_classification = False
+            if len(datasets) > 0:
+                self.binary_classification = all(datasets[i][1].nunique() == 2 for i in range(len(datasets)))
 
         # Make directories
         if output_dir:
@@ -101,7 +112,7 @@ class ModelExplain():
 
         # generate permutation feature importance for each metric on each dataset
         for X, y, dataset_name in self.datasets:
-            self.logger.info(f"running permutation importance on {dataset_name} data")
+            self.logger.info(f"Running permutation importance on {dataset_name} data")
             r = permutation_importance(self.model, X, y, n_repeats=n_repeats,
                                        random_state=seed, scoring=metrics)
             imps = []
@@ -116,13 +127,21 @@ class ModelExplain():
             df.to_csv(f'{importance_dir}/permutation_importance_{dataset_name}.csv')
 
     def plot_shap(self, shap_sample: Optional[int] = None) -> None:
-        """Generate model explanitory charts involving shap values."""
+        """
+        Generate model explanitory charts involving shap values.
 
-        plt.close('all')
+        Parameters
+        ----------
+        shap_sample : int, optional
+            number of rows to sample from the dataset (default is None).
+        """
+
+        self.logger.info("----- Generating Shap Charts -----")
+
         assert self.model is not None, "self.model can't be None to run plot_shap()"
+        plt.close('all')
 
         # Generate Shap Charts
-        self.logger.info("----- Generating Shap Charts -----")
         savefig_kwargs = {'bbox_inches': 'tight', 'pad_inches': 0.2}
         def predict(x): return self.model.predict_proba(x)[:, 1]
         for X, y, dataset_name in self.datasets:
@@ -173,6 +192,87 @@ class ModelExplain():
             plt.savefig(path, **savefig_kwargs)
             plt.close()
             # TODO?: make alpha and max_display config variables
+
+    def plot_feature_distribution(self) -> None:
+        """Generate histogram of feature importance values."""
+
+        self.logger.info("----- Generating Feature Distribution Charts -----")
+
+        plt.close('all')
+        savefig_kwargs = {'bbox_inches': 'tight', 'pad_inches': 0.2}
+        with plt.style.context('seaborn-v0_8-darkgrid'):
+            for X, y, dataset_name in self.datasets:
+                plot_dir = self.output_dir/"feature_distribution"/dataset_name
+                plot_dir.mkdir(parents=True, exist_ok=True)  # make directory for distribution plots
+                self.logger.info(f'Plotting {dataset_name} distribution plots')
+                for feature in tqdm(X.columns):
+                    bins = self._get_histogram_bins(X[feature], y)  # get bins for histogram
+                    plt.figure()
+                    common_kwargs = {"stat": "probability", "bins": bins, "kde": False}
+                    if self.binary_classification:  # plot distribution for each class
+                        sns.histplot(X[feature][y == 0], label="Class: 0", **common_kwargs, color="dodgerblue", alpha=0.5)
+                        sns.histplot(X[feature][y == 1], label="Class: 1", **common_kwargs, color="orange", alpha=0.4)
+                    else:
+                        sns.histplot(X[feature], **common_kwargs)
+                    plt.title(f"{feature} Distribution ({dataset_name} data)")
+                    plt.legend(borderaxespad=0, frameon=True)
+                    plt.savefig(f'{plot_dir}/{feature}.png', **savefig_kwargs)
+                    plt.close()
+
+    def _get_histogram_bins(self, X_feature, y_true) -> np.ndarray:
+        """
+        Get bins for histogram.
+        
+        Parameters
+        ----------
+        X_feature : pd.Series
+            feature values
+        y_true : pd.Series
+            target values
+        """
+
+        # 1. look for integer range in [-1, 50] that covers at least 99.5% of data (for integer-valued features)
+        for lb in range(-1, 51):  # find smallest integer >= -1 that has any values
+            if (X_feature == lb).any():
+                break
+        if self.binary_classification:  # if binary classification, require at least 99.5% of data from each class
+            df_0 = X_feature[y_true == 0]
+            df_1 = X_feature[y_true == 1]
+            total_0 = df_0.shape[0]
+            total_1 = df_1.shape[0]
+            cnt_0 = cnt_1 = 0
+            for ub in range(lb, 51):  # find smallest integer >= lb that has at least 99.5% of data from each class
+                cnt_0 += (df_0 == ub).sum()
+                cnt_1 += (df_1 == ub).sum()
+                if (cnt_0 / total_0 >= 0.995) and (cnt_1 / total_1 >= 0.995):
+                    bins = np.arange(lb, ub + 2) - 0.5
+                    return bins
+        else:  # if not binary classification, require at least 99.5% of all data
+            total = X_feature.sum()
+            cnt = 0
+            for ub in range(lb, 51):  # find smallest integer >= lb that has at least 99.5% of data
+                cnt += (X_feature == lb).sum()
+                if cnt / total >= 0.995:
+                    bins = np.arange(lb, ub + 2) - 0.5
+                    return bins
+
+        # 2. use numpy auto select bins
+        bins = np.histogram_bin_edges(X_feature, bins='auto')
+
+        # 3. if too many bins, use 50 equal-sized bins
+        if len(bins) > 51:
+            bins = np.histogram_bin_edges(X_feature, bins=50)
+
+        # 4. if more bins than unique values, then make one bin for each unique value
+        unique_vals = X_feature.unique()
+        if len(bins) > len(unique_vals) + 1:
+            unique_vals.sort()
+            mid_points = (unique_vals[:-1] + unique_vals[1:]) / 2
+            left = 2 * unique_vals[0] - mid_points[0]
+            right = 2 * unique_vals[-1] - mid_points[-1]
+            bins = np.concatenate([[left], mid_points, [right]])
+        
+        return bins
 
     def gen_psi(self, bin_type: str = 'fixed', n_bins: int = 10) -> None:
         """
@@ -486,6 +586,8 @@ class ModelExplain():
                 the maximum number of features allowed for charts and plots to be generated
         """
 
+        self.logger.info("----- Generating Correlation Charts -----")
+
         # check input
         features = self.datasets[0][0].columns
         if len(features) > max_features:
@@ -493,8 +595,6 @@ class ModelExplain():
                    f" features, which more than max_features = {max_features}")
             self.logger.warning(msg)
             return
-
-        self.logger.info("----- Generating Correlation Charts -----")
 
         # make output directory
         corr_dir = self.output_dir / 'correlation'
@@ -639,6 +739,13 @@ class ModelExplain():
                                top_n_value_counts: int = 5) -> None:
         """
         Generate summary statistics
+
+        Parameters
+        ----------
+        quantiles: Optional[List[float]]
+            List of quantiles to compute
+        top_n_value_counts: int
+            Number of top value counts to compute for each column
         """
 
         self.logger.info("----- Generating Summary Statistics -----")
@@ -710,10 +817,11 @@ class ModelExplain():
     def xgb_explain(self) -> None:
         """Generate model explanitory charts specific to XGBoost models."""
 
+        self.logger.info("----- Generating XGBoost Feature Importances -----")
+
         assert isinstance(self.model, xgb.XGBModel), f'model is type {type(self.model)}, which is not an XGBoost Model'
 
         # Get XGBoost feature importance
-        self.logger.info("----- Generating XGBoost Feature Importances -----")
         imp_types = ['gain', 'total_gain', 'weight', 'cover', 'total_cover']  # importance types
         bstr = self.model.get_booster()
         imps = [pd.Series(bstr.get_score(importance_type=t), name=t) for t in imp_types]
