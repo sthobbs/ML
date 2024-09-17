@@ -512,7 +512,7 @@ class ModelExplain():
             corr_long = corr_long.reindex(columns=['feature_1', 'feature_2', 'correlation'])  # reorder columns
             corr_long = corr_long[corr_long.feature_1 != corr_long.feature_2]
             corr_long.sort_values('correlation', key=abs, ascending=False, inplace=True)
-            corr_long.to_csv(corr_dir/f'corr_{dataset_name}_long.csv', index=False)
+            corr_long.to_csv(corr_dir/f'corr_long_{dataset_name}.csv', index=False)
             # plot heat map
             self._plot_corr_heatmap(corr, corr_dir/f'heatmap_{dataset_name}.png', data_type='corr')
 
@@ -701,6 +701,7 @@ class ModelExplain():
                 value_counts.insert(0, "feature", col)
                 dfs.append(value_counts)
             all_value_counts = pd.concat(dfs, axis=0)
+            all_value_counts['proportion'] = all_value_counts['count'] / len(df)
             # write to csv
             all_value_counts = all_value_counts.reset_index().rename({"index": "rank"}, axis=1)
             all_value_counts.to_csv(summary_statistics_dir / f'value_counts_{dataset_name}.csv', index=False)
