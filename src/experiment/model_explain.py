@@ -632,7 +632,9 @@ class ModelExplain():
             plt.savefig(output_path, bbox_inches='tight')
             plt.close()
 
-    def gen_summary_statistics(self, quantiles: Optional[List] = None) -> None:
+    def gen_summary_statistics(self,
+                               quantiles: Optional[List] = None,
+                               top_n_value_counts: int = 5) -> None:
         """
         Generate summary statistics
         """
@@ -674,7 +676,7 @@ class ModelExplain():
             columns = ['nan_rate', 'n_nan', 'n_unique', 'mean', 'median', 'mode', 'std', 'min', 'max', \
                     'iqr', 'n_outliers', 'skewness', 'kurtosis']
             summary_stats = pd.concat(dfs, axis=1, keys=columns)
-            summary_stats.index.name = 'feature/label'
+            summary_stats.index.name = 'feature'
 
             # save basic summary statistics
             summary_stats.to_csv(summary_statistics_dir / f'basic_summary_stats_{dataset_name}.csv')
@@ -693,13 +695,25 @@ class ModelExplain():
 
             # compute quantiles
             quantile_df = df.quantile(q=quantiles).T.rename(columns=columns)
-            quantile_df.index.name = 'feature/label'
+            quantile_df.index.name = 'feature'
 
             # save quantiles
             quantile_df.to_csv(summary_statistics_dir / f'quantiles_{dataset_name}.csv')
             self.logger.info(f'Generated quantiles for ({dataset_name} data)')
 
+            # get top n value counts
+            dfs = []
+            for col in df.columns:
+                value_counts = df[col].value_counts().head(top_n_value_counts)
+                value_counts = value_counts.reset_index().rename({col: "value"}, axis=1)
+                value_counts.insert(0, "feature", col)
+                dfs.append(value_counts)
+            all_value_counts = pd.concat(dfs, axis=0).reset_index().rename({"index": "rank"}, axis=1)
 
+            # save value counts
+            all_value_counts.to_csv(summary_statistics_dir / f'value_counts_{dataset_name}.csv', index=False)
+            self.logger.info(f'Generated value counts for ({dataset_name} data)')
+    
     def xgb_explain(self) -> None:
         """Generate model explanitory charts specific to XGBoost models."""
 

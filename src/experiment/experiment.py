@@ -114,10 +114,12 @@ class Experiment():
         self.hyperparameter_tuning = self.config.get("hyperparameter_tuning", False)
         self.hyperparameter_eval_metric = self.config.get("hyperparameter_eval_metric", "log_loss")
         self.cross_validation = self.config.get("cross_validation", False)
-        self.cv_folds = self.config.get("cv_folds", 5)
+        self.cv_folds = int(self.config.get("cv_folds", 5))
         self.tuning_algorithm = self.config.get("tuning_algorithm")
-        self.grid_search_n_jobs = self.config.get("grid_search_n_jobs", 1)
+        self.grid_search_n_jobs = int(self.config.get("grid_search_n_jobs", 1))
         self.tuning_iterations = self.config.get("tuning_iterations")
+        if self.tuning_iterations is not None:
+            self.tuning_iterations = int(self.tuning_iterations)
         self.tuning_parameters = self.config.get("tuning_parameters")
 
         # ------ Model Explainability -------
@@ -130,26 +132,29 @@ class Experiment():
         # Shapely Values
         self.shap = self.config.get("shap", False)
         self.shap_sample = self.config.get("shap_sample")
+        if self.shap_sample is not None:
+            self.shap_sample = int(self.shap_sample)
         # Population Stability Index
         self.psi = self.config.get("psi", False)
         self.psi_bin_type = self.config.get("psi_bin_type", "fixed")
-        self.psi_n_bins = self.config.get("psi_n_bins", 10)
+        self.psi_n_bins = int(self.config.get("psi_n_bins", 10))
         # Characteristic Stability Index
         self.csi = self.config.get("csi", False)
         self.csi_bin_type = self.config.get("csi_bin_type", "fixed")
-        self.csi_n_bins = self.config.get("csi_n_bins", 10)
+        self.csi_n_bins = int(self.config.get("csi_n_bins", 10))
         # Variance Inflation Factor
         self.vif = self.config.get("vif", False)
         # WOE/IV
         self.woe_iv = self.config.get("woe_iv", False)
         self.woe_bin_type = self.config.get("woe_bin_type", "quantiles")
-        self.woe_n_bins = self.config.get("woe_n_bins", 10)
+        self.woe_n_bins = int(self.config.get("woe_n_bins", 10))
         # Correlation
         self.correlation = self.config.get("correlation", False)
-        self.corr_max_features = self.config.get("corr_max_features", 100)
+        self.corr_max_features = int(self.config.get("corr_max_features", 100))
         # Summary Statistics
         self.summary_stats = self.config.get("summary_stats", False)
         self.quantiles = self.config.get("quantiles")
+        self.top_n_value_counts = int(self.config.get("top_n_value_counts", 5))
 
         # ------ Model Calibration -------
         self.model_calibration = self.config.get("model_calibration", False)
@@ -212,8 +217,8 @@ class Experiment():
             'shap', 'shap_sample', 'psi', 'psi_bin_type', 'psi_n_bins', 'csi',
             'csi_bin_type', 'csi_n_bins', 'vif', 'woe_iv', 'woe_bin_type',
             'woe_n_bins', 'correlation', 'corr_max_features', 'summary_stats',
-            'quantiles', 'model_calibration', 'calibration_type',
-            'calibration_train_dataset_name'
+            'quantiles', 'top_n_value_counts', 'model_calibration',
+            'calibration_type', 'calibration_train_dataset_name'
         }
         valid_keys = required_keys.union(other_valid_keys)
         keys_with_required_vals = {
@@ -440,7 +445,7 @@ class Experiment():
                 if int(num) <= 1:
                     raise ConfigError(f"if {feature} is an int, it should be > 1")
         # check no key, None, or castable to int (>=1))
-        for feature in {'cv_folds'}:
+        for feature in {'cv_folds', 'top_n_value_counts'}:
             num = self.config.get(feature)
             if num is not None:
                 try:
@@ -923,7 +928,7 @@ class Experiment():
             model_explain.gen_corr(self.corr_max_features)
 
         if self.summary_stats:
-            model_explain.gen_summary_statistics(self.quantiles)
+            model_explain.gen_summary_statistics(self.quantiles, self.top_n_value_counts)
 
         if isinstance(self.model, xgb.XGBModel):
             model_explain.xgb_explain()
