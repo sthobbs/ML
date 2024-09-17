@@ -89,6 +89,7 @@ class Experiment():
             self.score_dir = self.output_dir / self.config["score_dir"]
         self.log_dir = self.output_dir / self.config.get("log_dir", "logs")
         self.calibration_dir = self.output_dir / self.config.get("calibration_dir", "calibration")
+        self.misc_dir = self.output_dir / self.config.get("misc_dir", "misc")
         self.performance_increment = float(self.config.get("performance_increment", 0.01))
 
         # ------ Job Config -------
@@ -215,8 +216,8 @@ class Experiment():
         }
         other_valid_keys = {
             'input_model_path', 'score_dir', 'log_dir', 'calibration_dir',
-            'performance_increment', 'label', 'aux_fields', 'verbose',
-            'hyperparameter_tuning',  'hyperparameter_eval_metric',
+            'misc_dir', 'performance_increment', 'label', 'aux_fields',
+            'verbose', 'hyperparameter_tuning',  'hyperparameter_eval_metric',
             'cross_validation', 'cv_folds', 'tuning_algorithm',
             'grid_search_n_jobs',  'tuning_iterations', 'tuning_parameters',
             'permutation_importance', 'perm_imp_metrics', 'perm_imp_n_repeats',
@@ -818,6 +819,9 @@ class Experiment():
             for trial in trials.trials:
                 file.write(str(trial))
                 file.write("\n\n")
+        self.misc_dir.mkdir(exist_ok=True)
+        with open(self.misc_dir/"hyperopt_trials.pkl", "wb") as file:
+            pickle.dump(trials, file)
 
         return best_params
 
