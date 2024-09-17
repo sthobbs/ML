@@ -147,6 +147,9 @@ class Experiment():
         # Correlation
         self.correlation = self.config.get("correlation", False)
         self.corr_max_features = self.config.get("corr_max_features", 100)
+        # Summary Statistics
+        self.summary_stats = self.config.get("summary_stats", False)
+        self.quantiles = self.config.get("quantiles")
 
         # ------ Model Calibration -------
         self.model_calibration = self.config.get("model_calibration", False)
@@ -208,8 +211,9 @@ class Experiment():
             'permutation_importance', 'perm_imp_metrics', 'perm_imp_n_repeats',
             'shap', 'shap_sample', 'psi', 'psi_bin_type', 'psi_n_bins', 'csi',
             'csi_bin_type', 'csi_n_bins', 'vif', 'woe_iv', 'woe_bin_type',
-            'woe_n_bins', 'correlation', 'corr_max_features', 'model_calibration',
-            'calibration_type', 'calibration_train_dataset_name'
+            'woe_n_bins', 'correlation', 'corr_max_features', 'summary_stats',
+            'quantiles', 'model_calibration', 'calibration_type',
+            'calibration_train_dataset_name'
         }
         valid_keys = required_keys.union(other_valid_keys)
         keys_with_required_vals = {
@@ -444,7 +448,7 @@ class Experiment():
                 except Exception as e:
                     raise ConfigError(f"{feature} exception converting to int: {e}")
                 if int(num) < 1:
-                    raise ConfigError(f"if {feature} is an int, it should be > 1")
+                    raise ConfigError(f"if {feature} is an int, it should be >= 1")
 
         # check required boolean keys
         boolean_keys = {
@@ -457,11 +461,19 @@ class Experiment():
         # check non-required boolean keys
         boolean_keys = {
             'cross_validation', 'permutation_importance', 'shap', 'psi', 'csi',
-            'vif', 'woe_iv', 'correlation', 'model_calibration'
+            'vif', 'woe_iv', 'correlation', 'summary_stats', 'model_calibration'
         }
         for k in boolean_keys:
             if self.config.get(k) not in {True, False, None}:
                 raise ConfigError(f"if {k} is present, it must be True, False, or empty")
+
+        # check quantiles (list of floats in [0, 1])
+        if self.config.get('quantiles') is not None:
+            if type(self.config["quantiles"]) is not list or len(self.config["quantiles"]) < 1:
+                raise ConfigError("quantiles must be a list with len >= 1")
+            for q in self.config["quantiles"]:
+                if q < 0 or q > 1:
+                    raise ConfigError("quantiles must be a list with all floats in [0, 1]")
 
     def run(self) -> None:
         """Run a complete experiment including (depending on config):
@@ -910,7 +922,8 @@ class Experiment():
         if self.correlation:
             model_explain.gen_corr(self.corr_max_features)
 
-        model_explain.gen_summary_statistics()
+        if self.summary_stats:
+            model_explain.gen_summary_statistics(self.quantiles)
 
         if isinstance(self.model, xgb.XGBModel):
             model_explain.xgb_explain()

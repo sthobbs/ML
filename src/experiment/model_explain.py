@@ -632,7 +632,7 @@ class ModelExplain():
             plt.savefig(output_path, bbox_inches='tight')
             plt.close()
 
-    def gen_summary_statistics(self) -> None:
+    def gen_summary_statistics(self, quantiles: Optional[List] = None) -> None:
         """
         Generate summary statistics
         """
@@ -674,10 +674,30 @@ class ModelExplain():
             columns = ['nan_rate', 'n_nan', 'n_unique', 'mean', 'median', 'mode', 'std', 'min', 'max', \
                     'iqr', 'n_outliers', 'skewness', 'kurtosis']
             summary_stats = pd.concat(dfs, axis=1, keys=columns)
+            summary_stats.index.name = 'feature/label'
 
             # save basic summary statistics
             summary_stats.to_csv(summary_statistics_dir / f'basic_summary_stats_{dataset_name}.csv')
             self.logger.info(f'Generated basic summary stats for ({dataset_name} data)')
+
+            # set quantiles if not specified
+            if quantiles is None:
+                quantiles = [0, 0.01, 0.1, 0.25, 0.5, 0.75, 0.9, 0.99, 1]
+
+            # set quantile column names
+            columns = {q: f"{round(100*q)}%" for q in quantiles}
+            if 0 in quantiles:
+                columns[0] = "min"
+            if 1 in quantiles:
+                columns[1] = "max"
+
+            # compute quantiles
+            quantile_df = df.quantile(q=quantiles).T.rename(columns=columns)
+            quantile_df.index.name = 'feature/label'
+
+            # save quantiles
+            quantile_df.to_csv(summary_statistics_dir / f'quantiles_{dataset_name}.csv')
+            self.logger.info(f'Generated quantiles for ({dataset_name} data)')
 
 
     def xgb_explain(self) -> None:

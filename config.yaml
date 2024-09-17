@@ -452,6 +452,18 @@ corr_max_features: 100
     # this is included to prevent long runtimes if there are too many features
 
 
+### Summary Statistics
+summary_stats: True
+quantiles: [0, 0.01, 0.1, 0.25, 0.5, 0.75, 0.9, 0.99, 1]
+# summary_stats
+  # not required, default False, type: boolean
+  # valid values: True, False
+  # meaning: True => generate summary statistics for all features and the label in all datasets
+# quantiles
+  # not required, default None, type: list
+  # valid values: List of numbers in the closed interval [0, 1]
+  # meaning: list of quantiles to generate for each feature (+ label)
+
 # ----------------------------------
 # ------- Model Calibration --------
 # ----------------------------------
