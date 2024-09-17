@@ -12,6 +12,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 import xgboost as xgb
 from typing import Optional, List, Union, Tuple
+import numpy.typing as npt
 matplotlib.use('agg')
 
 
@@ -195,6 +196,7 @@ class ModelExplain():
 
         # check for valid input
         assert bin_type in {'fixed', 'quantiles'}, "bin_type must be in {'fixed', 'quantiles'}"
+        assert self.model is not None, "self.model can't be None to run gen_psi()"
 
         # make output directory
         psi_csi_dir = self.output_dir / 'psi_csi'
@@ -233,8 +235,8 @@ class ModelExplain():
         psi_df.to_csv(psi_csi_dir/'psi.csv', index=False)
 
     def _psi_compare(self,
-                     scores1: Union[np.ndarray, pd.core.series.Series],
-                     scores2: Union[np.ndarray, pd.core.series.Series],
+                     scores1: Union[npt.NDArray[np.float64], pd.core.series.Series],
+                     scores2: Union[npt.NDArray[np.float64], pd.core.series.Series],
                      bin_type: str = 'fixed',
                      n_bins: int = 10) -> float:
         """
@@ -512,12 +514,12 @@ class ModelExplain():
             corr_long.sort_values('correlation', key=abs, ascending=False, inplace=True)
             corr_long.to_csv(corr_dir/f'corr_{dataset_name}_long.csv', index=False)
             # plot heat map
-            self.plot_corr_heatmap(corr, corr_dir/f'heatmap_{dataset_name}.png', data_type='corr')
+            self._plot_corr_heatmap(corr, corr_dir/f'heatmap_{dataset_name}.png', data_type='corr')
 
-    def plot_corr_heatmap(self,
-                          data: pd.core.frame.DataFrame,
-                          output_path: Union[str, Path],
-                          data_type: str = 'corr') -> None:
+    def _plot_corr_heatmap(self,
+                           data: pd.core.frame.DataFrame,
+                           output_path: Union[str, Path],
+                           data_type: str = 'corr') -> None:
         """
         Plot correlation heat map.
 
@@ -599,8 +601,8 @@ class ModelExplain():
             ax.set_yticks([feat_to_num[v] + 0.5 for v in features], minor=True)
 
             # set axis limits
-            ax.set_xlim([-0.5, len(features) - 0.5])
-            ax.set_ylim([-0.5, len(features) - 0.5])
+            ax.set_xlim((-0.5, len(features) - 0.5))
+            ax.set_ylim((-0.5, len(features) - 0.5))
 
             # hide all ticks
             plt.tick_params(axis='both', which='both', bottom=False, left=False)
@@ -625,7 +627,7 @@ class ModelExplain():
             ax.set_facecolor('white')  # Make background white
             ax.set_xticks([])  # Remove horizontal ticks
             ax.set_yticks(np.linspace(min(bar_y), max(bar_y), 3))  # Show vertical ticks for min, middle and max
-            ax.set_yticklabels([-1, 0, 1], fontsize=font_size)
+            ax.set_yticklabels(["-1", "0", "1"], fontsize=font_size)
             ax.yaxis.tick_right()  # Show vertical ticks on the right
 
             # save figure
@@ -633,7 +635,7 @@ class ModelExplain():
             plt.close()
 
     def gen_summary_statistics(self,
-                               quantiles: Optional[List] = None,
+                               quantiles: Optional[List[float]] = None,
                                top_n_value_counts: int = 5) -> None:
         """
         Generate summary statistics
@@ -645,15 +647,13 @@ class ModelExplain():
         summary_statistics_dir = self.output_dir / 'summary_statistics'
         summary_statistics_dir.mkdir(parents=True, exist_ok=True)
 
-        # iterate over datasets
+        # generate summary statistics for each dataset
         for X, y, dataset_name in tqdm(self.datasets):
 
-            # concatenate features and labels
-            df = pd.concat([y, X], axis=1)
-
             # compute basic summary statistics
+            df = pd.concat([y, X], axis=1)
             n_nan = df.isna().sum()  # number of missing values
-            median = df.median()  # median
+            median = df.median()
             iqr = df.quantile(0.75) - df.quantile(0.25)  # interquartile range
             n_outliers = (((df - median) / iqr).abs() > 2.22).sum()  # number of outliers (2.22 iqr is approx z-score of 3)
             dfs = [
@@ -671,49 +671,41 @@ class ModelExplain():
                 df.skew(),        # skewness
                 df.kurtosis()     # kurtosis
             ]
-
-            # combine results
-            columns = ['nan_rate', 'n_nan', 'n_unique', 'mean', 'median', 'mode', 'std', 'min', 'max', \
-                    'iqr', 'n_outliers', 'skewness', 'kurtosis']
-            summary_stats = pd.concat(dfs, axis=1, keys=columns)
+            summary_stat_columns = ['nan_rate', 'n_nan', 'n_unique', 'mean', 'median', 'mode', 'std',
+                                    'min', 'max', 'iqr', 'n_outliers', 'skewness', 'kurtosis']
+            summary_stats = pd.concat(dfs, axis=1, keys=summary_stat_columns)
+            # write to csv
             summary_stats.index.name = 'feature'
-
-            # save basic summary statistics
             summary_stats.to_csv(summary_statistics_dir / f'basic_summary_stats_{dataset_name}.csv')
             self.logger.info(f'Generated basic summary stats for ({dataset_name} data)')
 
-            # set quantiles if not specified
-            if quantiles is None:
-                quantiles = [0, 0.01, 0.1, 0.25, 0.5, 0.75, 0.9, 0.99, 1]
-
-            # set quantile column names
-            columns = {q: f"{round(100*q)}%" for q in quantiles}
-            if 0 in quantiles:
-                columns[0] = "min"
-            if 1 in quantiles:
-                columns[1] = "max"
-
             # compute quantiles
-            quantile_df = df.quantile(q=quantiles).T.rename(columns=columns)
+            if quantiles is None:  # set quantiles if not specified
+                quantiles = [0, 0.01, 0.1, 0.25, 0.5, 0.75, 0.9, 0.99, 1]
+            quantile_columns = {q: f"{round(100 * q)}%" for q in quantiles}  # quantile column names
+            if 0 in quantiles:
+                quantile_columns[0] = "min"
+            if 1 in quantiles:
+                quantile_columns[1] = "max"
+            quantile_df = df.quantile(q=quantiles).T.rename(columns=quantile_columns)
+            # write to csv
             quantile_df.index.name = 'feature'
-
-            # save quantiles
             quantile_df.to_csv(summary_statistics_dir / f'quantiles_{dataset_name}.csv')
             self.logger.info(f'Generated quantiles for ({dataset_name} data)')
 
-            # get top n value counts
+            # compute top n value counts
             dfs = []
             for col in df.columns:
                 value_counts = df[col].value_counts().head(top_n_value_counts)
                 value_counts = value_counts.reset_index().rename({col: "value"}, axis=1)
                 value_counts.insert(0, "feature", col)
                 dfs.append(value_counts)
-            all_value_counts = pd.concat(dfs, axis=0).reset_index().rename({"index": "rank"}, axis=1)
-
-            # save value counts
+            all_value_counts = pd.concat(dfs, axis=0)
+            # write to csv
+            all_value_counts = all_value_counts.reset_index().rename({"index": "rank"}, axis=1)
             all_value_counts.to_csv(summary_statistics_dir / f'value_counts_{dataset_name}.csv', index=False)
             self.logger.info(f'Generated value counts for ({dataset_name} data)')
-    
+
     def xgb_explain(self) -> None:
         """Generate model explanitory charts specific to XGBoost models."""
 
@@ -726,14 +718,14 @@ class ModelExplain():
         imps = [pd.Series(bstr.get_score(importance_type=t), name=t) for t in imp_types]
         df = pd.concat(imps, axis=1)  # dataframe of importances
         df = df.apply(lambda x: x / x.sum(), axis=0)  # normalize so each column sums to 1
-        
+
         # add in 0 importance features
         features = self.datasets[0][0].columns
         feats_series = pd.Series(index=features, name='temp', dtype='float64')
         df = pd.concat([df, feats_series], axis=1)
         df.drop(columns='temp', inplace=True)
         df.fillna(0, inplace=True)
-        
+
         # sort and save
         df.sort_values('gain', ascending=False, inplace=True)
         importance_dir = self.output_dir / "feature_importance"

@@ -23,8 +23,11 @@ from experiment.model_evaluate import ModelEvaluate, metric_score
 from experiment.model_explain import ModelExplain
 from experiment.model_calibrate import ModelCalibrate
 import warnings
-np.warnings = warnings  # workaround for hyperopt/numpy incompatability
 ProgressBar().register()
+
+# workaround for hyperopt/numpy incompatability
+if not hasattr(np, "warnings"):
+    setattr(np, "warnings", warnings)
 
 
 class ConfigError(Exception):

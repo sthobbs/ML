@@ -13,6 +13,7 @@ from tqdm import tqdm
 from scipy.stats import ks_2samp
 import logging
 from typing import Optional, List, Union, Tuple
+import numpy.typing as npt
 matplotlib.use('agg')
 
 
@@ -71,8 +72,8 @@ class ModelEvaluate():
     def __init__(self,
                  model: Optional[BaseEstimator] = None,
                  datasets: Optional[List[Tuple[
-                    Union[np.ndarray, pd.core.frame.DataFrame, pd.core.series.Series],
-                    Union[np.ndarray, pd.core.frame.DataFrame, pd.core.series.Series],
+                    Union[pd.core.frame.DataFrame, pd.core.series.Series],
+                    Union[pd.core.frame.DataFrame, pd.core.series.Series],
                     str]]] = None,
                  datasets_have_y_score: Optional[bool] = False,
                  output_dir: Optional[Union[str, Path]] = None,
@@ -154,7 +155,10 @@ class ModelEvaluate():
 
         for X, y_true, dataset_name in self.datasets:
             self.logger.info(f"----- Generating {dataset_name} Data Metrics -----")
-            y_score = X if self.datasets_have_y_score else self.model.predict_proba(X)
+            if self.datasets_have_y_score:
+                y_score = X
+            elif self.model is not None:
+                y_score = self.model.predict_proba(X)
             if y_score.ndim == 2:
                 assert y_score.shape[1] == 2, f'unexpected y_score shape: {y_score.shape}'
                 y_score = y_score[:, 1]
@@ -226,7 +230,9 @@ class ModelEvaluate():
         with plt.style.context(self.plot_context):
             for metric in metrics:
                 for dataset_name, default_name in name_pairs:
-                    plt.plot(range(1, n_estimators+1), evals_result.get(default_name, {}).get(metric), label=dataset_name)
+                    metric_vals = evals_result.get(default_name, {}).get(metric)
+                    if metric_vals is not None:
+                        plt.plot(range(1, n_estimators+1), metric_vals, label=dataset_name)
                 plt.xlabel('n_estimators')
                 plt.ylabel(metric)
                 plt.title(f'n_estimators vs {metric}')
@@ -268,9 +274,9 @@ class ModelEvaluate():
         self.logger.info('Generated optimal n_estimators table')
 
     def _plot_precision_recall_threshold(self,
-                                         precision: np.ndarray,
-                                         recall: np.ndarray,
-                                         thresholds: np.ndarray,
+                                         precision: npt.NDArray[np.float64],
+                                         recall: npt.NDArray[np.float64],
+                                         thresholds: npt.NDArray[np.float64],
                                          dataset_name: str) -> None:
         """
         Plot the precision and recall against the threshold.
@@ -301,8 +307,8 @@ class ModelEvaluate():
         plt.close()
 
     def _plot_precision_recall(self,
-                               precision: np.ndarray,
-                               recall: np.ndarray,
+                               precision: npt.NDArray[np.float64],
+                               recall: npt.NDArray[np.float64],
                                dataset_name: str,
                                average_precision: float,
                                precision_recall_auc: float) -> None:
@@ -342,8 +348,8 @@ class ModelEvaluate():
         plt.close()
 
     def _plot_roc(self,
-                  fpr: np.ndarray,
-                  tpr: np.ndarray,
+                  fpr: npt.NDArray[np.float64],
+                  tpr: npt.NDArray[np.float64],
                   dataset_name: str,
                   roc_auc: float) -> None:
         """
@@ -380,8 +386,8 @@ class ModelEvaluate():
         plt.close()
 
     def _plot_det(self,
-                  fpr: np.ndarray,
-                  fnr: np.ndarray,
+                  fpr: npt.NDArray[np.float64],
+                  fnr: npt.NDArray[np.float64],
                   dataset_name: str) -> None:
         """
         Plot detection error tradeoff curve.
@@ -403,7 +409,6 @@ class ModelEvaluate():
             plt.savefig(f'{self.plots_subdir}/det_{dataset_name}.png')
             self.logger.info(f'Plotted Detection Error Tradeoff ({dataset_name} data)')
         plt.close()
-
 
     def _plot_cap(self, y_true, y_score, dataset_name: str) -> float:
         """
@@ -428,13 +433,13 @@ class ModelEvaluate():
             # plot perfect model CAP
             x_perfect = [0, pos_cnt, total_cnt]
             y_perfect = [0, pos_cnt, pos_cnt]
-            plt.plot(x_perfect, y_perfect, c='grey', label='Perfect Model') 
+            plt.plot(x_perfect, y_perfect, c='grey', label='Perfect Model')
 
             # plot actual model CAP
-            ordered_y_true = [y for _, y in sorted(zip(y_score, y_true), reverse=True)] 
+            ordered_y_true = [y for _, y in sorted(zip(y_score, y_true), reverse=True)]
             x_actual = np.arange(0, total_cnt + 1)
             y_actual = np.append([0], np.cumsum(ordered_y_true))
-            plt.plot(x_actual, y_actual, c='b', label='Actual Model') 
+            plt.plot(x_actual, y_actual, c='b', label='Actual Model')
 
             # plot random model CAP
             x_random = [0, total_cnt]
@@ -445,7 +450,7 @@ class ModelEvaluate():
             random_area = auc(x_random, y_random)  # area under random model
             perfect_area = auc(x_perfect, y_perfect)  # area under perfect model
             actual_area = auc(x_actual, y_actual)  # area under actual model
-            accuracy_ratio = (actual_area - random_area) / (perfect_area - random_area)
+            accuracy_ratio: float = (actual_area - random_area) / (perfect_area - random_area)
 
             # configure plot
             plt.xlim(-0.05 * total_cnt, 1.05 * total_cnt)
@@ -514,6 +519,8 @@ class ModelEvaluate():
         numeric_aux_fields = []
         if self.aux_fields:
             idx = [i for i, (_, _, name) in enumerate(self.datasets) if name == dataset_name][0]
+            assert isinstance(self.datasets[idx][0], pd.core.frame.DataFrame), \
+                f'Dataset {dataset_name} needs to be a dataframe if self.aux_fields is not empty, got {type(self.datasets[idx][0])}'
             numeric_fields = set(self.datasets[idx][0].select_dtypes([np.number]).columns)
             numeric_aux_fields = [f for f in self.aux_fields if f in numeric_fields]
             aux_data = self.datasets[idx][0][numeric_aux_fields]
@@ -628,12 +635,18 @@ class ModelEvaluate():
     def ks_statistic(self) -> None:
         """Generate Kolmogorov-Smirnov (KS) Statistic."""
 
+        assert self.model is not None or self.datasets_have_y_score, \
+            "self.model must not be None to run this method, unless self.datasets_have_y_score is True"
+
         # intialize output table
         performance = []
 
         # generate KS Statistic for each dataset
         for X, y_true, dataset_name in self.datasets:
-            y_score = X if self.datasets_have_y_score else self.model.predict_proba(X)
+            if self.datasets_have_y_score:
+                y_score = X
+            elif self.model is not None:
+                y_score = self.model.predict_proba(X)
             if y_score.ndim == 2:
                 assert y_score.shape[1] == 2, f'unexpected y_score shape: {y_score.shape}'
                 y_score = y_score[:, 1]
