@@ -363,7 +363,7 @@ perm_imp_n_repeats: 5
 
 
 ### Shapely Values
-shap: True  # True or False; True => generate shap charts
+shap: False  # True or False; True => generate shap charts
 shap_sample: 50000
 # shap
   # not required, default False, type: boolean
@@ -378,10 +378,15 @@ shap_sample: 50000
 
 ### Feature Distribution
 feature_distribution: True
+exclude_outliers: True
 # feature_distribution
   # not required, default False, type: boolean
   # valid values: True, False
   # meaning: True => generate feature distribution charts
+# exclude_outliers
+  # not required, default False, type: boolean
+  # valid values: True, False
+  # meaning: True => exclude outliers from feature distribution charts
 
 
 ### Population Stability Index

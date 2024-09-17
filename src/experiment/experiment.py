@@ -139,6 +139,7 @@ class Experiment():
             self.shap_sample = int(self.shap_sample)
         # Feature Distribution
         self.feature_distribution = self.config.get("feature_distribution", False)
+        self.exclude_outliers = self.config.get("exclude_outliers", False)
         # Population Stability Index
         self.psi = self.config.get("psi", False)
         self.psi_bin_type = self.config.get("psi_bin_type", "fixed")
@@ -219,11 +220,12 @@ class Experiment():
             'cross_validation', 'cv_folds', 'tuning_algorithm',
             'grid_search_n_jobs',  'tuning_iterations', 'tuning_parameters',
             'permutation_importance', 'perm_imp_metrics', 'perm_imp_n_repeats',
-            'shap', 'shap_sample', 'feature_distribution','psi', 'psi_bin_type',
-            'psi_n_bins', 'csi', 'csi_bin_type', 'csi_n_bins', 'vif', 'woe_iv',
-            'woe_bin_type', 'woe_n_bins', 'correlation', 'corr_max_features',
-            'summary_stats', 'quantiles', 'top_n_value_counts', 'model_calibration',
-            'calibration_type', 'calibration_train_dataset_name'
+            'shap', 'shap_sample', 'feature_distribution', 'exclude_outliers',
+            'psi', 'psi_bin_type', 'psi_n_bins', 'csi', 'csi_bin_type',
+            'csi_n_bins', 'vif', 'woe_iv', 'woe_bin_type', 'woe_n_bins',
+            'correlation', 'corr_max_features', 'summary_stats', 'quantiles',
+            'top_n_value_counts', 'model_calibration', 'calibration_type',
+            'calibration_train_dataset_name'
         }
         valid_keys = required_keys.union(other_valid_keys)
         keys_with_required_vals = {
@@ -470,8 +472,9 @@ class Experiment():
 
         # check non-required boolean keys
         boolean_keys = {
-            'cross_validation', 'permutation_importance', 'shap', 'feature_distribution',
-            'psi', 'csi', 'vif', 'woe_iv', 'correlation', 'summary_stats', 'model_calibration'
+            'cross_validation', 'permutation_importance', 'shap',
+            'feature_distribution', 'exclude_outliers', 'psi', 'csi',
+            'vif', 'woe_iv', 'correlation', 'summary_stats', 'model_calibration'
         }
         for k in boolean_keys:
             if self.config.get(k) not in {True, False, None}:
@@ -917,7 +920,7 @@ class Experiment():
 
         # Generate Feature Distribution Charts
         if self.feature_distribution:
-            model_explain.plot_feature_distribution()
+            model_explain.plot_feature_distribution(self.exclude_outliers)
 
         # Generate PSI Table
         if self.psi:

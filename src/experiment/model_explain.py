@@ -193,8 +193,15 @@ class ModelExplain():
             plt.close()
             # TODO?: make alpha and max_display config variables
 
-    def plot_feature_distribution(self) -> None:
-        """Generate histogram of feature importance values."""
+    def plot_feature_distribution(self, exclude_outliers: bool = False) -> None:
+        """
+        Generate histogram of feature importance values.
+        
+        Parameters
+        ----------
+        exclude_outliers : bool
+            whether to exclude outliers (default is False).
+        """
 
         self.logger.info("----- Generating Feature Distribution Charts -----")
 
@@ -206,7 +213,7 @@ class ModelExplain():
                 plot_dir.mkdir(parents=True, exist_ok=True)  # make directory for distribution plots
                 self.logger.info(f'Plotting {dataset_name} distribution plots')
                 for feature in tqdm(X.columns):
-                    bins = self._get_histogram_bins(X[feature], y)  # get bins for histogram
+                    bins = self._get_histogram_bins(X[feature], y, exclude_outliers)  # get bins for histogram
                     plt.figure()
                     common_kwargs = {"stat": "probability", "bins": bins, "kde": False}
                     if self.binary_classification:  # plot distribution for each class
@@ -219,7 +226,7 @@ class ModelExplain():
                     plt.savefig(f'{plot_dir}/{feature}.png', **savefig_kwargs)
                     plt.close()
 
-    def _get_histogram_bins(self, X_feature, y_true) -> np.ndarray:
+    def _get_histogram_bins(self, X_feature, y_true, exclude_outliers: bool = False) -> np.ndarray:
         """
         Get bins for histogram.
         
@@ -229,21 +236,40 @@ class ModelExplain():
             feature values
         y_true : pd.Series
             target values
+        exclude_outliers : bool
+            whether to exclude extreme outliers from histogram (default is False).
         """
+
+        if exclude_outliers:
+            iqr_multiplier = 5  # IQR multiplier for outliers to be excluded (i.e. 5x the IQR)
+            not_outliers: pd.Series
+            if self.binary_classification:  # outliers should be outliers of both classes to be excluded
+                X_0 = X_feature[y_true == 0]
+                X_1 = X_feature[y_true == 1]
+                iqr_0 = X_0.quantile(0.75) - X_0.quantile(0.25)
+                iqr_1 = X_1.quantile(0.75) - X_1.quantile(0.25)
+                non_outlier_ub = max(X_0.median() + iqr_multiplier * iqr_0, X_1.median() + iqr_multiplier * iqr_1)
+                non_outlier_lb = min(X_0.median() - iqr_multiplier * iqr_0, X_1.median() - iqr_multiplier * iqr_1)
+                not_outliers = X_feature.between(non_outlier_lb, non_outlier_ub)
+            else:
+                iqr = X_feature.quantile(0.75) - X_feature.quantile(0.25)  # interquartile range
+                not_outliers = ((X_feature - X_feature.median()) / iqr).abs() <= iqr_multiplier
+            X_feature = X_feature[not_outliers]
+            y_true = y_true[not_outliers]
 
         # 1. look for integer range in [-1, 50] that covers at least 99.5% of data (for integer-valued features)
         for lb in range(-1, 51):  # find smallest integer >= -1 that has any values
             if (X_feature == lb).any():
                 break
         if self.binary_classification:  # if binary classification, require at least 99.5% of data from each class
-            df_0 = X_feature[y_true == 0]
-            df_1 = X_feature[y_true == 1]
-            total_0 = df_0.shape[0]
-            total_1 = df_1.shape[0]
+            X_0 = X_feature[y_true == 0]
+            X_1 = X_feature[y_true == 1]
+            total_0 = X_0.shape[0]
+            total_1 = X_1.shape[0]
             cnt_0 = cnt_1 = 0
             for ub in range(lb, 51):  # find smallest integer >= lb that has at least 99.5% of data from each class
-                cnt_0 += (df_0 == ub).sum()
-                cnt_1 += (df_1 == ub).sum()
+                cnt_0 += (X_0 == ub).sum()
+                cnt_1 += (X_1 == ub).sum()
                 if (cnt_0 / total_0 >= 0.995) and (cnt_1 / total_1 >= 0.995):
                     bins = np.arange(lb, ub + 2) - 0.5
                     return bins
