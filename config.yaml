@@ -155,6 +155,7 @@ features:
 label: "Class"
 aux_fields:
   - Amount
+  - timestamp
 # features
   # required, type: list of str
   # meaning: list of field names of features
@@ -387,6 +388,29 @@ exclude_outliers: True
   # not required, default False, type: boolean
   # valid values: True, False
   # meaning: True => exclude outliers from feature distribution charts
+
+
+### Feature vs Time
+feature_vs_time: True
+dt_field: timestamp
+dt_format: "%Y-%m-%d %H:%M:%S.%f"
+feature_vs_time_n_bins: 15
+# feature_vs_time
+  # not required, default False, type: boolean
+  # valid values: True, False
+  # meaning: True => generate feature vs time charts
+# dt_field
+  # not required, default 'timestamp', type: string
+  # valid values: None or string
+  # meaning: field to use for time axis in feature vs time charts
+# dt_format
+  # not required, default 'mixed', type: string
+  # valid values: None or string (e.g. '%Y-%m-%d %H:%M:%S', '%Y-%m-%d %H:%M:%S.%f')
+  # meaning: format to use for time axis field in feature vs time charts
+# feature_vs_time_n_bins
+  # not required, default 15, type: None or int (or str that casts to int)
+  # valid values: None or int > 1
+  # meaning: number of bins to use in feature vs time charts
 
 
 ### Population Stability Index

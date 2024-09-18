@@ -141,6 +141,11 @@ class Experiment():
         # Feature Distribution
         self.feature_distribution = self.config.get("feature_distribution", False)
         self.exclude_outliers = self.config.get("exclude_outliers", False)
+        # Feature vs Time
+        self.feature_vs_time = self.config.get("feature_vs_time", False)
+        self.dt_field = self.config.get("dt_field", "timestamp")
+        self.dt_format = self.config.get("dt_format", "mixed")
+        self.feature_vs_time_n_bins = int(self.config.get("feature_vs_time_n_bins", 15))
         # Population Stability Index
         self.psi = self.config.get("psi", False)
         self.psi_bin_type = self.config.get("psi_bin_type", "fixed")
@@ -222,6 +227,7 @@ class Experiment():
             'grid_search_n_jobs',  'tuning_iterations', 'tuning_parameters',
             'permutation_importance', 'perm_imp_metrics', 'perm_imp_n_repeats',
             'shap', 'shap_sample', 'feature_distribution', 'exclude_outliers',
+            'feature_vs_time', 'dt_field', 'dt_format', 'feature_vs_time_n_bins',
             'psi', 'psi_bin_type', 'psi_n_bins', 'csi', 'csi_bin_type',
             'csi_n_bins', 'vif', 'woe_iv', 'woe_bin_type', 'woe_n_bins',
             'correlation', 'corr_max_features', 'summary_stats', 'quantiles',
@@ -423,6 +429,14 @@ class Experiment():
             except Exception as e:
                 raise ConfigError(f"shap_sample exception converting to int: {e}")
 
+        # check dt_field is is features or aux_fields
+        if self.config.get("feature_vs_time") \
+                and self.config.get("dt_field") is not None \
+                and isinstance(self.config.get("dt_field"), str) \
+                and self.config["dt_field"] not in self.config.get("features", []) \
+                and self.config["dt_field"] not in self.config.get("aux_fields", []):
+            raise ConfigError("invalid dt_field value, must be in features or aux_fields")
+
         # check psi_bin_type, csi_bin_type, and woe_bin_type (no key, None, 'fixed' or 'quantiles')
         for feature in {'psi_bin_type', 'csi_bin_type', 'woe_bin_type'}:
             bin_type = self.config.get(feature)
@@ -443,7 +457,7 @@ class Experiment():
             raise ConfigError(msg)
 
         # check no key, None, or castable to int (>1))
-        for feature in {'psi_n_bins', 'csi_n_bins', 'woe_n_bins', 'corr_max_features'}:
+        for feature in {'feature_vs_time_n_bins', 'psi_n_bins', 'csi_n_bins', 'woe_n_bins', 'corr_max_features'}:
             num = self.config.get(feature)
             if num is not None:
                 try:
@@ -474,8 +488,9 @@ class Experiment():
         # check non-required boolean keys
         boolean_keys = {
             'cross_validation', 'permutation_importance', 'shap',
-            'feature_distribution', 'exclude_outliers', 'psi', 'csi',
-            'vif', 'woe_iv', 'correlation', 'summary_stats', 'model_calibration'
+            'feature_distribution', 'exclude_outliers', 'feature_vs_time',
+            'psi', 'csi', 'vif', 'woe_iv', 'correlation', 'summary_stats',
+            'model_calibration'
         }
         for k in boolean_keys:
             if self.config.get(k) not in {True, False, None}:
@@ -626,6 +641,7 @@ class Experiment():
             self.logger.info(f"loading {name} data from {data_path}")
             df = dd.read_csv(data_path, usecols=fields, assume_missing=True)
             df = df.compute()
+            df.reset_index(drop=True, inplace=True)  # removes index duplicates when loading multiple files
             df = shuffle(df, random_state=self.seed)
             self.data[name] = {
                 'X': df[self.features]
@@ -633,6 +649,8 @@ class Experiment():
             # include label in supervised learning experiments
             if self.supervised:
                 self.data[name]['y'] = df[self.label]
+                if self.binary_classification:
+                    self.data[name]['y'] = self.data[name]['y'].astype(int)
             # store aux data (in separate object so that **self.data[name] can be used)
             self.aux_data[name] = df[self.aux_fields]
 
@@ -907,9 +925,12 @@ class Experiment():
 
         # Instantiate ModelExplain object
         datasets = [(self.data[n]['X'], self.data[n]['y'], n) for n in self.dataset_names]
+        aux_data = [self.aux_data[n] for n in self.dataset_names]
         model_explain = ModelExplain(model=self.model,
                                      datasets=datasets,
+                                     aux_data=aux_data,
                                      output_dir=self.explain_dir,
+                                     binary_classification=self.binary_classification,
                                      logger=self.logger)
 
         # Generate Permutation Feature Importance Tables
@@ -925,6 +946,12 @@ class Experiment():
         # Generate Feature Distribution Charts
         if self.feature_distribution:
             model_explain.plot_feature_distribution(self.exclude_outliers)
+
+        # Generate Feature vs Time Charts
+        if self.feature_vs_time:
+            model_explain.plot_feature_vs_time(dt_field=self.dt_field,
+                                               dt_format=self.dt_format,
+                                               n_bins=self.feature_vs_time_n_bins)
 
         # Generate PSI Table
         if self.psi:

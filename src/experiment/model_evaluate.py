@@ -516,6 +516,7 @@ class ModelEvaluate():
         assert 0 < increment < 1, f'increment={increment}, it should be >0 and <=1'
 
         # get data from numeric auxiliary fields to create additional metrics
+        # (only works if the numeric field is also a feature in the dataset)
         numeric_aux_fields = []
         if self.aux_fields:
             idx = [i for i, (_, _, name) in enumerate(self.datasets) if name == dataset_name][0]

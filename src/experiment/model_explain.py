@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 import xgboost as xgb
 from typing import Optional, List, Union, Tuple
 import numpy.typing as npt
+from datetime import timedelta
 matplotlib.use('agg')
 
 
@@ -31,6 +32,7 @@ class ModelExplain():
                     Union[pd.core.frame.DataFrame, pd.core.series.Series],
                     Union[pd.core.frame.DataFrame, pd.core.series.Series],
                     str]]] = None,
+                 aux_data: Optional[List[Union[pd.core.frame.DataFrame, pd.core.series.Series]]] = None,
                  output_dir: Optional[Union[str, Path]] = None,
                  binary_classification: Optional[bool] = None,
                  logger: Optional[logging.Logger] = None) -> None:
@@ -43,6 +45,9 @@ class ModelExplain():
                 List of (X, y, dataset_name) triples.
                 e.g. [(X_train, y_train, 'Train'), (X_val, y_val, 'Validation'), (X_test, y_test, 'Test')]
                 All datasets, X, should have the same columns.
+            aux_data :
+                Auxiliary data fields that aren't model features (e.g. timestamps).
+                List index corresponds to datasets index.
             output_dir : str, optional
                 string path to folder where output will be written.
             logger : logging.Logger, optional
@@ -58,12 +63,17 @@ class ModelExplain():
         if datasets is None:
             datasets = []
         self.datasets = datasets
+        if aux_data is None:
+            aux_data = []
+        self.aux_data = aux_data
 
         # Determine if binary classification based on datasets
         if binary_classification is None:
             self.binary_classification = False
             if len(datasets) > 0:
                 self.binary_classification = all(datasets[i][1].nunique() == 2 for i in range(len(datasets)))
+        else:
+            self.binary_classification = binary_classification
 
         # Make directories
         if output_dir:
@@ -196,7 +206,7 @@ class ModelExplain():
     def plot_feature_distribution(self, exclude_outliers: bool = False) -> None:
         """
         Generate histogram of feature importance values.
-        
+
         Parameters
         ----------
         exclude_outliers : bool
@@ -207,7 +217,7 @@ class ModelExplain():
 
         plt.close('all')
         savefig_kwargs = {'bbox_inches': 'tight', 'pad_inches': 0.2}
-        with plt.style.context('seaborn-v0_8-darkgrid'):
+        with plt.style.context(self.plot_context):
             for X, y, dataset_name in self.datasets:
                 plot_dir = self.output_dir/"feature_distribution"/dataset_name
                 plot_dir.mkdir(parents=True, exist_ok=True)  # make directory for distribution plots
@@ -229,7 +239,7 @@ class ModelExplain():
     def _get_histogram_bins(self, X_feature, y_true, exclude_outliers: bool = False) -> np.ndarray:
         """
         Get bins for histogram.
-        
+
         Parameters
         ----------
         X_feature : pd.Series
@@ -240,19 +250,20 @@ class ModelExplain():
             whether to exclude extreme outliers from histogram (default is False).
         """
 
+        # exclude extreme outliers
         if exclude_outliers:
             iqr_multiplier = 5  # IQR multiplier for outliers to be excluded (i.e. 5x the IQR)
             not_outliers: pd.Series
             if self.binary_classification:  # outliers should be outliers of both classes to be excluded
                 X_0 = X_feature[y_true == 0]
                 X_1 = X_feature[y_true == 1]
-                iqr_0 = X_0.quantile(0.75) - X_0.quantile(0.25)
+                iqr_0 = X_0.quantile(0.75) - X_0.quantile(0.25)  # interquartile range
                 iqr_1 = X_1.quantile(0.75) - X_1.quantile(0.25)
                 non_outlier_ub = max(X_0.median() + iqr_multiplier * iqr_0, X_1.median() + iqr_multiplier * iqr_1)
                 non_outlier_lb = min(X_0.median() - iqr_multiplier * iqr_0, X_1.median() - iqr_multiplier * iqr_1)
                 not_outliers = X_feature.between(non_outlier_lb, non_outlier_ub)
             else:
-                iqr = X_feature.quantile(0.75) - X_feature.quantile(0.25)  # interquartile range
+                iqr = X_feature.quantile(0.75) - X_feature.quantile(0.25)
                 not_outliers = ((X_feature - X_feature.median()) / iqr).abs() <= iqr_multiplier
             X_feature = X_feature[not_outliers]
             y_true = y_true[not_outliers]
@@ -297,8 +308,84 @@ class ModelExplain():
             left = 2 * unique_vals[0] - mid_points[0]
             right = 2 * unique_vals[-1] - mid_points[-1]
             bins = np.concatenate([[left], mid_points, [right]])
-        
+
         return bins
+
+    def plot_feature_vs_time(self,
+                             dt_field: str = 'timestamp',
+                             dt_format: str = 'mixed',
+                             n_bins: int = 15) -> None:
+        """
+        Plot features over time using matplotlib
+
+        Parameters
+        ----------
+        dt_field: str
+            name of the datetime field in the dataset (default: 'timestamp')
+        dt_format: str
+            format of the datetime field in the dataset, example input includes
+            "%Y-%m-%d %H:%M:%S" or "%Y-%m-%d %H:%M:%S.%f" (default: 'mixed')
+        n_bins: int
+            number of bins to use for equal time intervals (default: 15)
+        """
+
+        self.logger.info("----- Generating Feature vs Time Charts -----")
+
+        assert dt_field in self.datasets[0][0].columns \
+            or dt_field in self.aux_data[0].columns, \
+            f"dt_field: {dt_field} should be a column in the dataset or aux_data"
+        assert "datetime_bin" not in self.datasets[0][0].columns \
+            and "datetime_bin" not in self.aux_data[0].columns, \
+            "datetime_bin should not be a column in the dataset or aux_data, since this name will be used for binning"
+
+        plt.close('all')
+        savefig_kwargs = {'bbox_inches': 'tight', 'pad_inches': 0.2}
+        with plt.style.context(self.plot_context):
+            for i in range(len(self.datasets)):
+                X, y, dataset_name = self.datasets[i]
+                aux_data = self.aux_data[i]
+                aux_fields = [i for i in list(aux_data.columns) if i not in X.columns]
+                aux_data = aux_data[aux_fields]
+                # make directory for distribution plots
+                plot_dir = self.output_dir/"feature_vs_time"/dataset_name
+                plot_dir.mkdir(parents=True, exist_ok=True)  # make directory for distribution plots
+                self.logger.info(f'Plotting {dataset_name} distribution plots')
+
+                # split data into bins based on equal time intervals
+                df: pd.DataFrame
+                label: str | None
+                if self.binary_classification:
+                    print(y.dtypes)
+                    df = pd.concat([y, X, aux_data], axis=1)
+                    label = df.columns[0]
+                else:
+                    df = pd.concat([X, aux_data], axis=1)
+                    label = None
+                df[dt_field] = pd.to_datetime(df[dt_field], format=dt_format, dayfirst=False)  # convert to datetime
+                max_dt = df[dt_field].max()
+                min_dt = df[dt_field].min()
+                total_seconds = (max_dt - min_dt).total_seconds()
+                seconds_per_bin = total_seconds / n_bins  # seconds in each bin
+                df = df.sort_values(dt_field, ascending=True)
+                lb = 0
+                curr = min_dt  # current datetime lower bound
+                while curr < max_dt:
+                    midpoint_dt = curr + timedelta(seconds=seconds_per_bin / 2)
+                    curr += timedelta(seconds=seconds_per_bin)
+                    ub = df[dt_field].searchsorted(curr)  # binary search for upper bound (index of first value >= curr)
+                    df.loc[df.iloc[lb:ub-1].index, "datetime_bin"] = midpoint_dt  # use midpoint as bin label
+                    lb = ub
+
+                # generate plot for each feature
+                for feature in tqdm(X.columns):
+                    plt.figure()
+                    sns.lineplot(x="datetime_bin", y=feature, data=df, hue=label)
+                    plt.xlabel(dt_field)
+                    plt.xticks(rotation=45)
+                    plt.title(f"{feature} Over Time ({dataset_name} data)")
+                    plt.legend(borderaxespad=0.5, frameon=True, title=label)
+                    plt.savefig(f'{plot_dir}/{feature}.png', **savefig_kwargs)
+                    plt.close()
 
     def gen_psi(self, bin_type: str = 'fixed', n_bins: int = 10) -> None:
         """
