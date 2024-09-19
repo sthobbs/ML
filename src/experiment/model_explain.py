@@ -871,27 +871,47 @@ class ModelExplain():
 
             # compute basic summary statistics
             df = pd.concat([y, X], axis=1)
-            n_nan = df.isna().sum()  # number of missing values
+            null_cnt = df.isna().sum()  # number of missing values
             median = df.median()
             iqr = df.quantile(0.75) - df.quantile(0.25)  # interquartile range
-            n_outliers = (((df - median) / iqr).abs() > 2.22).sum()  # number of outliers (2.22 iqr is approx z-score of 3)
+            outlier_cnt = (((df - median) / iqr).abs() > 2.22).sum()  # number of outliers (2.22 iqr is approx z-score of 3)
+            n = len(df)
+            inf = float('inf')
+            ninf = float('-inf')
+            # import pdb; pdb.set_trace()
             dfs = [
-                n_nan / len(df),  # missing data rate
-                n_nan,            # number of missing values
-                df.nunique(),     # number of unique values
-                df.mean(),        # mean
-                median,           # median
-                df.mode().T[0],   # mode
-                df.std(),         # std
-                df.min(),         # min
-                df.max(),         # max
-                iqr,              # interquartile range
-                n_outliers,       # number of outliers
-                df.skew(),        # skewness
-                df.kurtosis()     # kurtosis
+                df.dtypes,               # data types
+                df.iloc[0, :],           # sample value
+                null_cnt,                # number of missing values
+                null_cnt / n,            # missing data rate
+                df.nunique(),            # number of unique values
+                df.nunique() / n,        # rate of unique values
+                (df == 0).sum(),         # number of zeros
+                (df == 0).sum() / n,     # rate of zeros
+                (df < 0).sum(),          # number of negative values
+                (df < 0).sum() / n,      # rate of negative values
+                (df == inf).sum(),       # number of infinity values
+                (df == inf).sum() / n,   # rate of infinity values
+                (df == ninf).sum(),      # number of -infinity values
+                (df == ninf).sum() / n,  # rate of -infinity values
+                df.mean(),               # mean
+                median,                  # median
+                df.mode().T[0],          # mode
+                df.std(),                # std
+                df.min(),                # min
+                df.max(),                # max
+                iqr,                     # interquartile range
+                outlier_cnt,             # number of outliers
+                outlier_cnt / n,         # rate of outliers
+                df.skew(),               # skewness
+                df.kurtosis()            # kurtosis
             ]
-            summary_stat_columns = ['nan_rate', 'n_nan', 'n_unique', 'mean', 'median', 'mode', 'std',
-                                    'min', 'max', 'iqr', 'n_outliers', 'skewness', 'kurtosis']
+            summary_stat_columns = ['data_types', 'sample_value', 'null_count', 'null_rate',
+                                    'unique_count', 'unique_rate', 'zero_count', 'zero_rate',
+                                    'negative_count', 'negative_rate', 'inf_count', 'inf_rate',
+                                    'neg_inf_count', 'neg_inf_rate', 'mean', 'median', 'mode',
+                                    'std', 'min', 'max', 'iqr', 'outlier_count', 'outlier_rate',
+                                    'skewness', 'kurtosis']
             summary_stats = pd.concat(dfs, axis=1, keys=summary_stat_columns)
             # write to csv
             summary_stats.index.name = 'feature'
