@@ -867,6 +867,7 @@ class ModelExplain():
         summary_statistics_dir.mkdir(parents=True, exist_ok=True)
 
         # generate summary statistics for each dataset
+        dataset_summary_statistics = {}
         for X, y, dataset_name in tqdm(self.datasets):
 
             # compute basic summary statistics
@@ -906,29 +907,46 @@ class ModelExplain():
                 df.skew(),               # skewness
                 df.kurtosis()            # kurtosis
             ]
-            summary_stat_columns = ['data_types', 'sample_value', 'null_count', 'null_rate',
-                                    'unique_count', 'unique_rate', 'zero_count', 'zero_rate',
-                                    'negative_count', 'negative_rate', 'inf_count', 'inf_rate',
-                                    'neg_inf_count', 'neg_inf_rate', 'mean', 'median', 'mode',
-                                    'std', 'min', 'max', 'iqr', 'outlier_count', 'outlier_rate',
-                                    'skewness', 'kurtosis']
+            summary_stat_columns = ['Data types', 'Sample value', 'Null count', 'Null rate',
+                                    'Unique count', 'Unique rate', 'Zero count', 'Zero rate',
+                                    'Negative count', 'Negative rate', 'Infinite count', 'Infinite rate',
+                                    'Negative infinite count', 'Negative infinite rate', 'Mean',
+                                    'Median', 'Mode', 'Standard deviation', 'Minimum', 'Maximum',
+                                    'Interquartile range', 'Outlier count', 'Outlier rate',
+                                    'Skewness', 'Kurtosis']
             summary_stats = pd.concat(dfs, axis=1, keys=summary_stat_columns)
+            summary_stats = summary_stats.round({
+                'Null rate': 6,
+                'Unique rate': 6,
+                'Zero rate': 6,
+                'Negative rate': 6,
+                'Infinite rate': 6,
+                'Negative infinite rate': 6,
+                'Mean': 6,
+                'Median': 6,
+                'Standard deviation': 6,
+                'Interquartile range': 6,
+                'Outlier rate': 6,
+                'Skewness': 6,
+                'Kurtosis': 6,
+            })
             # write to csv
             summary_stats.index.name = 'feature'
-            summary_stats.to_csv(summary_statistics_dir / f'basic_summary_stats_{dataset_name}.csv')
-            self.logger.info(f'Generated basic summary stats for ({dataset_name} data)')
+            summary_stats.to_csv(summary_statistics_dir / f'summary_stats_{dataset_name}.csv')
+            self.logger.info(f'Generated summary stats for ({dataset_name} data)')
 
             # compute quantiles
             if quantiles is None:  # set quantiles if not specified
                 quantiles = [0, 0.01, 0.1, 0.25, 0.5, 0.75, 0.9, 0.99, 1]
             quantile_columns = {q: f"{round(100 * q)}%" for q in quantiles}  # quantile column names
             if 0 in quantiles:
-                quantile_columns[0] = "min"
+                quantile_columns[0] = "Minimum"
             if 1 in quantiles:
-                quantile_columns[1] = "max"
+                quantile_columns[1] = "Maximum"
             quantile_df = df.quantile(q=quantiles).T.rename(columns=quantile_columns)
+            quantile_df = quantile_df.round(6)
             # write to csv
-            quantile_df.index.name = 'feature'
+            quantile_df.index.name = 'Feature'
             quantile_df.to_csv(summary_statistics_dir / f'quantiles_{dataset_name}.csv')
             self.logger.info(f'Generated quantiles for ({dataset_name} data)')
 
@@ -936,15 +954,34 @@ class ModelExplain():
             dfs = []
             for col in df.columns:
                 value_counts = df[col].value_counts().head(top_n_value_counts)
-                value_counts = value_counts.reset_index().rename({col: "value"}, axis=1)
-                value_counts.insert(0, "feature", col)
+                value_counts = value_counts.reset_index().rename({col: "Value"}, axis=1)
+                value_counts.insert(0, "Feature", col)
                 dfs.append(value_counts)
             all_value_counts = pd.concat(dfs, axis=0)
-            all_value_counts['proportion'] = all_value_counts['count'] / len(df)
+            all_value_counts.rename({"count": "Count"}, axis=1, inplace=True)
+            all_value_counts['Proportion'] = (all_value_counts['Count'] / len(df)).round(6)
+            
             # write to csv
-            all_value_counts = all_value_counts.reset_index().rename({"index": "rank"}, axis=1)
+            all_value_counts = all_value_counts.reset_index().rename({"index": "Rank"}, axis=1)
             all_value_counts.to_csv(summary_statistics_dir / f'value_counts_{dataset_name}.csv', index=False)
             self.logger.info(f'Generated value counts for ({dataset_name} data)')
+
+            # compute dataset summary statistics
+            total_null_cnt = null_cnt.sum()
+            duplicate_cnt = df.duplicated().sum()
+            dataset_summary_statistics[dataset_name] = {
+                'Number of features': str(X.shape[1]),  # convert ints to str, so they aren't written as floats in csv
+                'Number of samples': str(n),
+                'Null cells': str(total_null_cnt),
+                'Null cell rate': round(total_null_cnt / (n * X.shape[1]), 6),
+                'Duplicate rows': str(duplicate_cnt),
+                'Duplicate row rate': round(duplicate_cnt / n, 6)
+            }
+
+        # write dataset summary statistics to csv
+        dataset_summary_statistics = pd.DataFrame(dataset_summary_statistics)
+        dataset_summary_statistics.to_csv(summary_statistics_dir / 'dataset_summary_statistics.csv')
+
 
     def gen_binary_splits(self, n_splits=10) -> None:
         """
@@ -1084,16 +1121,6 @@ class ModelExplain():
                       'F1-Score':  "{:.4f}",
                       'IV':        "{:.4f}"})
 
-            # add borders and lines 
-            s.set_table_styles([
-                {"selector": "", "props": [("border", "2px solid")]},  # table border
-                {"selector": "th.col_heading", "props": [("border-left", "2px solid")]},  # column heading left border
-                {"selector": "th.row_heading.level0", "props": [("border-right", "2px solid")]},  # Feature value right border
-            ], overwrite=False)
-            for _, group_df in t.groupby('Feature'):  # add lines between features
-                s.set_table_styles({group_df.index[0]: [{'selector': '', 'props': 'border-top: 2px solid black;'}]}, 
-                                   overwrite=False, axis=1)
-
             # cell padding & alignment
             s.set_properties(**{'text-align': 'right'})  # align cells right
             align_text = [
@@ -1111,6 +1138,16 @@ class ModelExplain():
                 {'selector': ' ',
                 'props': 'margin: 0; font-family: "Helvetica", "Arial", sans-serif; border-collapse: collapse; border: none;'}
             ], overwrite=False)
+
+            # add borders and lines 
+            s.set_table_styles([
+                {"selector": "", "props": [("border", "2px solid")]},  # table border
+                {"selector": "th.col_heading", "props": [("border-left", "2px solid")]},  # column heading left border
+                {"selector": "th.row_heading.level0", "props": [("border-right", "2px solid")]},  # Feature value right border
+            ], overwrite=False)
+            for _, group_df in t.groupby('Feature'):  # add lines between features
+                s.set_table_styles({group_df.index[0]: [{'selector': '', 'props': 'border-top: 2px solid black;'}]}, 
+                                   overwrite=False, axis=1)
 
             # row hover
             s.set_table_styles([
