@@ -8,3 +8,4 @@ pysqlite3==0.5.3
 pyyaml==6.0.2
 types-PyYAML==6.0.12.20240808
 ipython==8.27.0
+ipykernel==6.29.5
