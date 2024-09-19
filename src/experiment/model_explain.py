@@ -11,7 +11,7 @@ from tqdm import tqdm
 import matplotlib
 import matplotlib.pyplot as plt
 import xgboost as xgb
-from typing import Optional, List, Union, Tuple
+from typing import Optional, List, Union, Tuple, Callable
 import numpy.typing as npt
 from datetime import timedelta
 matplotlib.use('agg')
@@ -205,7 +205,7 @@ class ModelExplain():
 
     def plot_feature_distribution(self, exclude_outliers: bool = False) -> None:
         """
-        Generate histogram of feature importance values.
+        Generate histogram of feature values.
 
         Parameters
         ----------
@@ -219,7 +219,7 @@ class ModelExplain():
         savefig_kwargs = {'bbox_inches': 'tight', 'pad_inches': 0.2}
         with plt.style.context(self.plot_context):
             for X, y, dataset_name in self.datasets:
-                plot_dir = self.output_dir/"feature_distribution"/dataset_name
+                plot_dir = self.output_dir/"distribution"/dataset_name
                 plot_dir.mkdir(parents=True, exist_ok=True)  # make directory for distribution plots
                 self.logger.info(f'Plotting {dataset_name} distribution plots')
                 for feature in tqdm(X.columns):
@@ -355,7 +355,6 @@ class ModelExplain():
                 df: pd.DataFrame
                 label: str | None
                 if self.binary_classification:
-                    print(y.dtypes)
                     df = pd.concat([y, X, aux_data], axis=1)
                     label = df.columns[0]
                 else:
@@ -926,6 +925,182 @@ class ModelExplain():
             all_value_counts = all_value_counts.reset_index().rename({"index": "rank"}, axis=1)
             all_value_counts.to_csv(summary_statistics_dir / f'value_counts_{dataset_name}.csv', index=False)
             self.logger.info(f'Generated value counts for ({dataset_name} data)')
+
+    def gen_binary_splits(self, n_splits=10) -> None:
+        """
+        Generate binary splits table for each feature in each dataset.
+
+        Parameters
+        ----------
+        n_splits: int
+            Number of splits to generate
+        """
+
+        self.logger.info("----- Generating Binary Splits Tables -----")
+
+        assert self.binary_classification, 'binary_classification must be set to True to generate binary splits'
+
+        # define colour map functions for formatting the table later
+        def colour_column(col) -> Callable:
+            """
+            Return function that maps values in col above the median to green
+            and below the median to red with a gradient.
+
+            Parameters
+            ----------
+            col: pd.Series
+                Column to colour
+            """
+
+            min_val = col.min()
+            max_val = col.max()
+            med_val = col.median()
+
+            def colour_map(val: float) -> Tuple:
+                """
+                Map values above the median to green and below the
+                median to red with a gradient.
+
+                Parameters
+                ----------
+                val: float
+                    Value to colour
+                """
+
+                if val >= med_val:
+                    cmap = plt.get_cmap('Greens')
+                    x = (val - med_val) / (max_val - med_val)
+                else:
+                    cmap = plt.get_cmap('Reds')
+                    x = (med_val - val) / (med_val - min_val)
+                r, g, b, _ = cmap(x)
+                r, g, b = int(256 * r), int(256 * g), int(256 * b)        
+                return r, g, b
+
+            format_list = []
+            for v in col:
+                r, g, b = colour_map(v)
+                format_list.append(f'background-color: rgba({r}, {g}, {b}, 0.5)')
+
+            return format_list
+
+        def shade_every_other_row(col):
+            """
+            Colour every other row, except for the top level index.
+            """
+            if col.name == 0:  # special case for top level index
+                return ['background-color: rgba(150, 150, 150, 0.5);'] * len(col)
+            return ['background-color: rgba(220, 220, 220, 0.5);' \
+                if x % 2 == 0 else '' for x in range(len(col))]
+
+        # make output directory
+        binary_splits_dir = self.output_dir / 'binary_splits'
+        binary_splits_dir.mkdir(parents=True, exist_ok=True)
+
+        # generate binary splits for each dataset
+        for X, y, dataset_name in self.datasets:
+            # get dataframes for each class
+            df = pd.concat([y, X], axis=1)
+            df_0 = df[df.iloc[:, 0] == 0]
+            df_1 = df[df.iloc[:, 0] == 1]
+            sum_0 = df_0.shape[0]
+            sum_1 = df_1.shape[0]
+            
+            # generate binary splits table
+            records = []
+            for feature in tqdm(X.columns):
+                # get splits for each feature
+                if df[feature].nunique() <= n_splits + 1:  # use unique values as splits if there aren't too many
+                    splits = df[feature].unique()
+                    splits.sort()
+                    splits = splits[:-1]
+                else:  # use quantiles if many unique values
+                    quantiles = np.arange(1 / (n_splits + 1), 1, 1 / (n_splits + 1))
+                    splits = df[feature].quantile(quantiles, interpolation='nearest')
+                    splits = splits.round(2).unique()
+                    splits.sort()
+
+                # compute metrics for each split
+                int_splits = True if (splits == splits.astype(int)).all() else False  # all splits are integers # TODO? could check all values of this feature are integers
+                for s in splits:
+                    count_0 = (df_0[feature] > s).sum()  # get counts
+                    count_1 = (df_1[feature] > s).sum()
+                    prop_0 = count_0 / sum_0  # get proportions
+                    prop_1 = count_1 / sum_1
+                    fp_to_tp = count_0 / count_1 if count_1 > 0 else np.inf
+                    p = count_1 / (count_0 + count_1)  # precision
+                    r = count_1 / sum_1  # recall
+                    f1 = 2 * p * r / (p + r) if p + r > 0 else 0  # f1 score
+                    if prop_1 == 0 or prop_1 == 1:
+                        iv = 0
+                    else: 
+                        iv = (prop_0 - prop_1) * np.log(np.divide(prop_0, prop_1)) + \
+                            (prop_1 - prop_0) * np.log(np.divide(1 - prop_0, 1 - prop_1))  # information value
+                    record = {
+                        'Feature': feature,
+                        'Split': f'> {s}' if int_splits else f'> {s:.2f}',  # round to 2 decimal places if non-integer splits
+                        'Class 0 %': round(100 * prop_0, 2),
+                        'Class 1 %': round(100 * prop_1, 2),
+                        'FP to TP': round(fp_to_tp, 2),
+                        'F1-Score': round(f1, 4),
+                        'IV': round(iv, 4),
+                    }
+                    records.append(record)
+            t = pd.DataFrame.from_records(records)
+            t = t.set_index(['Feature', 'Split'])
+
+            ### format table ###
+            # add colours to cells
+            s = t.style.apply(colour_column, subset=['F1-Score', 'IV'], axis=0)  # colour F1-Score and IV based on value
+            s.apply(shade_every_other_row, subset=['Class 0 %', 'Class 1 %', 'FP to TP'], axis=0)  # shade every 2nd row
+            s.apply_index(shade_every_other_row, axis=0)  # shade every other row in Split, and all rows in Feature
+            headers = {'selector': 'th.col_heading', 'props': 'background-color: rgba(150, 150, 150, 0.5); color: black;'}
+            s.set_table_styles([headers], overwrite=False)  # shade column headers
+
+            # round values
+            s.format({'Class 0 %': "{:.2f}",
+                      'Class 1 %': "{:.2f}",
+                      'FP to TP':  "{:.2f}",
+                      'F1-Score':  "{:.4f}",
+                      'IV':        "{:.4f}"})
+
+            # add borders and lines 
+            s.set_table_styles([
+                {"selector": "", "props": [("border", "2px solid")]},  # table border
+                {"selector": "th.col_heading", "props": [("border-left", "2px solid")]},  # column heading left border
+                {"selector": "th.row_heading.level0", "props": [("border-right", "2px solid")]},  # Feature value right border
+            ], overwrite=False)
+            for _, group_df in t.groupby('Feature'):  # add lines between features
+                s.set_table_styles({group_df.index[0]: [{'selector': '', 'props': 'border-top: 2px solid black;'}]}, 
+                                   overwrite=False, axis=1)
+
+            # cell padding & alignment
+            s.set_properties(**{'text-align': 'right'})  # align cells right
+            align_text = [
+                {'selector': 'th.row_heading.level1', 'props': 'text-align: right;'},  # right-align Splits in row index
+                {'selector': 'th.col_heading', 'props': 'text-align: center;'},  # center-align column names
+                {'selector': "th.col_heading", 'props': 'padding-left: 10px; padding-right: 10px;'},  # pad column names
+                {'selector': "td", 'props': 'padding-left: 0px; padding-right: 20px;'},  # pad regular cells
+                {'selector': "td.col4", 'props': 'padding-left: 18px; padding-right: 18px;'},  # pad IV (custom padding for short name)
+                {'selector': "th.row_heading.level0", 'props': 'padding-left: 4px; padding-right: 4px;'},  # pad Features
+                {'selector': "th.row_heading.level1", 'props': 'padding-left: 4px; padding-right: 10px;'}]  # pad Splits 
+            s.set_table_styles(align_text, overwrite=False)  
+
+            # table properties
+            s.set_table_styles([
+                {'selector': ' ',
+                'props': 'margin: 0; font-family: "Helvetica", "Arial", sans-serif; border-collapse: collapse; border: none;'}
+            ], overwrite=False)
+
+            # row hover
+            s.set_table_styles([
+                {'selector': 'tr:hover', 'props': 'background-color: LightSteelBlue'} # for cell hover use <td> instead of <tr>
+            ], overwrite=False)
+
+            # save html export
+            s.to_html(binary_splits_dir / f'binary_splits_{dataset_name}.html')
+            self.logger.info(f'Generated binary splits for ({dataset_name} data)')
+
 
     def xgb_explain(self) -> None:
         """Generate model explanitory charts specific to XGBoost models."""

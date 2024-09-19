@@ -167,6 +167,9 @@ class Experiment():
         self.summary_stats = self.config.get("summary_stats", False)
         self.quantiles = self.config.get("quantiles")
         self.top_n_value_counts = int(self.config.get("top_n_value_counts", 5))
+        # Binary Splits
+        self.binary_splits = self.config.get("binary_splits", False)
+        self.n_splits = int(self.config.get("n_splits", 10))
 
         # ------ Model Calibration -------
         self.model_calibration = self.config.get("model_calibration", False)
@@ -231,8 +234,8 @@ class Experiment():
             'psi', 'psi_bin_type', 'psi_n_bins', 'csi', 'csi_bin_type',
             'csi_n_bins', 'vif', 'woe_iv', 'woe_bin_type', 'woe_n_bins',
             'correlation', 'corr_max_features', 'summary_stats', 'quantiles',
-            'top_n_value_counts', 'model_calibration', 'calibration_type',
-            'calibration_train_dataset_name'
+            'top_n_value_counts', 'binary_splits', 'n_splits', 'model_calibration',
+            'calibration_type', 'calibration_train_dataset_name'
         }
         valid_keys = required_keys.union(other_valid_keys)
         keys_with_required_vals = {
@@ -467,7 +470,7 @@ class Experiment():
                 if int(num) <= 1:
                     raise ConfigError(f"if {feature} is an int, it should be > 1")
         # check no key, None, or castable to int (>=1))
-        for feature in {'cv_folds', 'top_n_value_counts'}:
+        for feature in {'cv_folds', 'top_n_value_counts', 'n_splits'}:
             num = self.config.get(feature)
             if num is not None:
                 try:
@@ -490,7 +493,7 @@ class Experiment():
             'cross_validation', 'permutation_importance', 'shap',
             'feature_distribution', 'exclude_outliers', 'feature_vs_time',
             'psi', 'csi', 'vif', 'woe_iv', 'correlation', 'summary_stats',
-            'model_calibration'
+            'binary_splits', 'model_calibration'
         }
         for k in boolean_keys:
             if self.config.get(k) not in {True, False, None}:
@@ -973,9 +976,15 @@ class Experiment():
         if self.correlation:
             model_explain.gen_corr(self.corr_max_features)
 
+        # Generate Summary Statistics
         if self.summary_stats:
             model_explain.gen_summary_statistics(self.quantiles, self.top_n_value_counts)
 
+        # Generate Binary Splits Table
+        if self.binary_splits:
+            model_explain.gen_binary_splits(self.n_splits)
+
+        # Generate XGBoost Explainability
         if isinstance(self.model, xgb.XGBModel):
             model_explain.xgb_explain()
 

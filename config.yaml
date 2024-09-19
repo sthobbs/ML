@@ -507,6 +507,19 @@ top_n_value_counts: 5
   # meaning: gen top n value counts for each feature (+ label)
 
 
+### Binary Splits Analysis
+binary_splits: True
+n_splits: 10
+# binary_splits
+  # not required, default False, type: boolean
+  # valid values: True, False
+  # meaning: True => generate binary splits table for all features in all datasets
+# n_splits
+  # not required, default 10, type: None or int (or str that casts to int)
+  # valid values: None or int >= 1
+  # meaning: number of splits to use in binary splits analysis
+
+
 # ----------------------------------
 # ------- Model Calibration --------
 # ----------------------------------
