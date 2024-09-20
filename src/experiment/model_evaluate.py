@@ -264,7 +264,7 @@ class ModelEvaluate():
             elif metric in metrics_to_maximize or metric.startswith('ndcg') or metric.startswith('map'):
                 f = np.argmax
             else:
-                self.logger.warning(f"unexpected metric '{metric}', skipping it")
+                self.logger.warning(f"Unexpected metric '{metric}', skipping it")
                 continue
             for dataset_name, default_name in name_pairs:
                 n_estimator_performance = np.array(evals_result.get(default_name, {}).get(metric))

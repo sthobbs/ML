@@ -539,7 +539,7 @@ class Experiment():
 
         # copy config to output_dir
         copyfile(self.config_path, self.output_dir/"config.yaml")
-        self.logger.info(f"config copied to {self.output_dir}/config.yaml")
+        self.logger.info(f"Config copied to {self.output_dir}/config.yaml")
 
         # load model
         if not self.config.get('model', None):
@@ -572,7 +572,7 @@ class Experiment():
                 self.logger.error(msg)
                 raise TypeError(msg)
             self.model = model_obj
-            self.logger.info("model loaded from passed in model object")
+            self.logger.info("Model loaded from passed in model object")
 
         # load model from path (if passed in)
         elif path is not None:
@@ -617,9 +617,9 @@ class Experiment():
         try:
             with open(path, 'rb') as f:
                 self.model = pickle.load(f, encoding='latin1')
-                self.logger.info(f"model loaded from path: {path}")
+                self.logger.info(f"Model loaded from path: {path}")
         except Exception:
-            self.logger.error(f"error loading model from path: {path}")
+            self.logger.error(f"Error loading model from path: {path}")
             raise
 
     def load_data(self) -> None:
@@ -641,7 +641,7 @@ class Experiment():
         # load data
         for name, file_pattern in self.data_file_patterns.items():
             data_path = self.data_dir / file_pattern
-            self.logger.info(f"loading {name} data from {data_path}")
+            self.logger.info(f"Loading {name} data from {data_path}")
             df = dd.read_csv(data_path, usecols=fields, assume_missing=True)
             df = df.compute()
             df.reset_index(drop=True, inplace=True)  # removes index duplicates when loading multiple files

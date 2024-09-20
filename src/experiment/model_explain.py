@@ -216,7 +216,7 @@ class ModelExplain():
         self.logger.info("----- Generating Feature Distribution Charts -----")
 
         plt.close('all')
-        savefig_kwargs = {'bbox_inches': 'tight', 'pad_inches': 0.2}
+        savefig_kwargs = {'bbox_inches': 'tight', 'pad_inches': 0.5}
         with plt.style.context(self.plot_context):
             for X, y, dataset_name in self.datasets:
                 plot_dir = self.output_dir/"distribution"/dataset_name
@@ -619,7 +619,7 @@ class ModelExplain():
 
         for X, y, dataset_name in self.datasets:
 
-            self.logger.info(f"generating woe and iv for {dataset_name} dataset")
+            self.logger.info(f"Generating woe and iv for {dataset_name} dataset")
 
             # initialize lists to accumulate data
             woe_df_list = []
@@ -703,7 +703,7 @@ class ModelExplain():
         # check input
         features = self.datasets[0][0].columns
         if len(features) > max_features:
-            msg = (f"not computing correlation matrix since there are {len(features)}"
+            msg = (f"Not computing correlation matrix since there are {len(features)}"
                    f" features, which more than max_features = {max_features}")
             self.logger.warning(msg)
             return
@@ -714,7 +714,7 @@ class ModelExplain():
 
         # for dataset_name, dataset in self.data.items():
         for X, _, dataset_name in self.datasets:
-            self.logger.info(f"generating correlations for {dataset_name} dataset")
+            self.logger.info(f"Generating correlations for {dataset_name} dataset")
             corr = X.corr()
             corr_long = pd.melt(corr.reset_index(), id_vars='index')  # unpivot to long format
             # write to csv
