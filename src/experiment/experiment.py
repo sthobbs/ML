@@ -180,7 +180,7 @@ class Experiment():
         self.data: Dict[str, Dict[str, Union[pd.core.frame.DataFrame, pd.core.series.Series]]] = {}  # where data will be stored
         self.aux_data: Dict[str, Union[pd.core.frame.DataFrame, pd.core.series.Series]] = {}  # where auxiliary fields will be stored
 
-        # specific order for dataset_names (for appropriate early stopping if enabled)
+        # specific order for dataset_names (since last dataset is used for early stopping if enabled)
         all_names = set(self.data_file_patterns)
         main_names = {'train', 'test', 'validation'}
         other_names = sorted(all_names.difference(main_names))
@@ -882,7 +882,7 @@ class Experiment():
 
         # print and log results
         self.logger.info(f"{metric}: {score}")
-        seconds_to_train = time.time() - start_time
+        seconds_to_train = round(time.time() - start_time, 2)
         self.logger.info(f"{seconds_to_train} seconds to train")
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         with open(self.log_dir/"parameter_tuning_log.txt", "a") as file:
@@ -993,7 +993,7 @@ class Experiment():
 
         self.logger.info("----- Generating Scores -----")
         self.score_dir.mkdir(exist_ok=True)
-        for dataset_name, dataset in tqdm(self.data.items()):
+        for dataset_name, dataset in self.data.items():
             scores = self.model.predict_proba(dataset['X'])[:, 1]
             scores = pd.Series(scores, name='score', index=dataset['y'].index)
             df = pd.concat([dataset['y'], scores, self.aux_data[dataset_name]], axis=1)

@@ -106,7 +106,6 @@ class ModelEvaluate():
 
         # Make directories
         if output_dir:
-            print('output_dir = ', output_dir)
             self.output_dir = Path(output_dir)
             self.plots_subdir = self.output_dir / 'plots'
             self.tables_subdir = self.output_dir / 'tables'
@@ -154,7 +153,7 @@ class ModelEvaluate():
         plt.close('all')
 
         for X, y_true, dataset_name in self.datasets:
-            self.logger.info(f"----- Generating {dataset_name} Data Metrics -----")
+            self.logger.info(f"----- Generating Performance Metrics ({dataset_name} data) -----")
             if self.datasets_have_y_score:
                 y_score = X
             elif self.model is not None:

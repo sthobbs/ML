@@ -170,7 +170,7 @@ aux_fields:
 
 ### Other
 seed: 32
-verbose: 10
+verbose: 100
 # seed
   # required, type: int (or str that casts to int)
   # valid values: any integer
@@ -197,7 +197,7 @@ hyperparameters:
   reg_lambda: 1
   reg_alpha: 0
   scale_pos_weight: 1
-  # early_stopping_rounds: 50 # need XGBoost v1.6.0
+  # early_stopping_rounds: 50
   eval_metric: [auc, aucpr, error, logloss]  # last metric is used for early stopping (if applicable)
 # hyperparameters
   # required, type: dict (list of key-value pairs)

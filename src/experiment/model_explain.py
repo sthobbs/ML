@@ -122,7 +122,6 @@ class ModelExplain():
 
         # generate permutation feature importance for each metric on each dataset
         for X, y, dataset_name in self.datasets:
-            self.logger.info(f"Running permutation importance on {dataset_name} data")
             r = permutation_importance(self.model, X, y, n_repeats=n_repeats,
                                        random_state=seed, scoring=metrics)
             imps = []
@@ -135,6 +134,7 @@ class ModelExplain():
             df.index = X.columns
             df.sort_values(f"{metrics[0]}_mean", ascending=False, inplace=True)
             df.to_csv(f'{importance_dir}/permutation_importance_{dataset_name}.csv')
+            self.logger.info(f"Generated permutation importance ({dataset_name} data)")
 
     def plot_shap(self, shap_sample: Optional[int] = None) -> None:
         """
@@ -163,7 +163,6 @@ class ModelExplain():
                 self.logger.warning(msg)
 
             # Generate partial dependence plots
-            self.logger.info(f'Plotting {dataset_name} partial dependence plots')
             plot_dir = self.output_dir/"shap"/dataset_name/"partial_dependence_plots"
             plot_dir.mkdir(parents=True, exist_ok=True)
             for feature in tqdm(dataset.columns):
@@ -172,9 +171,9 @@ class ModelExplain():
                     feature_expected_value=True, show=False, ice=False)
                 fig.savefig(f"{plot_dir}/{feature}.png", **savefig_kwargs)
                 plt.close()
+            self.logger.info(f'Plotted partial dependence plots ({dataset_name} data)')
 
             # Generate scatter plots (coloured by feature with strongest interaction)
-            self.logger.info(f'Plotting {dataset_name} scatter plots')
             explainer = shap.Explainer(self.model, dataset)
             shap_values = explainer(dataset)
             plot_dir = self.output_dir/"shap"/dataset_name/"scatter_plots"
@@ -183,16 +182,16 @@ class ModelExplain():
                 shap.plots.scatter(shap_values[:, feature], alpha=0.3, color=shap_values, show=False)
                 plt.savefig(f"{plot_dir}/{feature}.png", **savefig_kwargs)
                 plt.close()
+            self.logger.info(f'Plotted scatter plots ({dataset_name} data)')
 
             # Generate beeswarm plot
-            self.logger.info(f'Plotting {dataset_name} beeswarm plot')
             shap.plots.beeswarm(shap_values, alpha=0.1, max_display=1000, show=False)
             path = self.output_dir/"shap"/dataset_name/"beeswarm_plot.png"
             plt.savefig(path, **savefig_kwargs)
             plt.close()
+            self.logger.info(f'Plotted beeswarm plot ({dataset_name} data)')
 
             # Generate bar plots
-            self.logger.info(f'Plotting {dataset_name} bar plots')
             shap.plots.bar(shap_values, max_display=1000, show=False)
             path = self.output_dir/"shap"/dataset_name/"abs_mean_bar_plot.png"
             plt.savefig(path, **savefig_kwargs)
@@ -201,6 +200,7 @@ class ModelExplain():
             path = self.output_dir/"shap"/dataset_name/"abs_max_bar_plot.png"
             plt.savefig(path, **savefig_kwargs)
             plt.close()
+            self.logger.info(f'Plotted bar plots ({dataset_name} data)')
             # TODO?: make alpha and max_display config variables
 
     def plot_feature_distribution(self, exclude_outliers: bool = False) -> None:
@@ -221,7 +221,6 @@ class ModelExplain():
             for X, y, dataset_name in self.datasets:
                 plot_dir = self.output_dir/"distribution"/dataset_name
                 plot_dir.mkdir(parents=True, exist_ok=True)  # make directory for distribution plots
-                self.logger.info(f'Plotting {dataset_name} distribution plots')
                 for feature in tqdm(X.columns):
                     bins = self._get_histogram_bins(X[feature], y, exclude_outliers)  # get bins for histogram
                     plt.figure()
@@ -235,6 +234,7 @@ class ModelExplain():
                     plt.legend(borderaxespad=0, frameon=True)
                     plt.savefig(f'{plot_dir}/{feature}.png', **savefig_kwargs)
                     plt.close()
+                self.logger.info(f'Plotted distribution plots ({dataset_name} data)')
 
     def _get_histogram_bins(self, X_feature, y_true, exclude_outliers: bool = False) -> np.ndarray:
         """
@@ -349,7 +349,6 @@ class ModelExplain():
                 # make directory for distribution plots
                 plot_dir = self.output_dir/"feature_vs_time"/dataset_name
                 plot_dir.mkdir(parents=True, exist_ok=True)  # make directory for distribution plots
-                self.logger.info(f'Plotting {dataset_name} distribution plots')
 
                 # split data into bins based on equal time intervals
                 df: pd.DataFrame
@@ -385,6 +384,7 @@ class ModelExplain():
                     plt.legend(borderaxespad=0.5, frameon=True, title=label)
                     plt.savefig(f'{plot_dir}/{feature}.png', **savefig_kwargs)
                     plt.close()
+                self.logger.info(f'Plotted feature vs time plots ({dataset_name} data)')
 
     def gen_psi(self, bin_type: str = 'fixed', n_bins: int = 10) -> None:
         """
@@ -619,7 +619,6 @@ class ModelExplain():
 
         for X, y, dataset_name in self.datasets:
 
-            self.logger.info(f"Generating woe and iv for {dataset_name} dataset")
 
             # initialize lists to accumulate data
             woe_df_list = []
@@ -687,6 +686,7 @@ class ModelExplain():
             iv_df.sort_values('adj_iv', ascending=False, inplace=True)
             iv_df.index.name = 'index'
             iv_df.to_csv(woe_dir/f'iv_{dataset_name}.csv')
+            self.logger.info(f"Generated WOE and IV ({dataset_name} data)")
 
     def gen_corr(self, max_features: int = 100) -> None:
         """
@@ -698,7 +698,7 @@ class ModelExplain():
                 the maximum number of features allowed for charts and plots to be generated
         """
 
-        self.logger.info("----- Generating Correlation Charts -----")
+        self.logger.info("----- Generating Correlation -----")
 
         # check input
         features = self.datasets[0][0].columns
@@ -714,7 +714,6 @@ class ModelExplain():
 
         # for dataset_name, dataset in self.data.items():
         for X, _, dataset_name in self.datasets:
-            self.logger.info(f"Generating correlations for {dataset_name} dataset")
             corr = X.corr()
             corr_long = pd.melt(corr.reset_index(), id_vars='index')  # unpivot to long format
             # write to csv
@@ -726,7 +725,9 @@ class ModelExplain():
             corr_long.sort_values('correlation', key=abs, ascending=False, inplace=True)
             corr_long.to_csv(corr_dir/f'corr_long_{dataset_name}.csv', index=False)
             # plot heat map
+            self.logger.info(f"Generated correlations ({dataset_name} data)")
             self._plot_corr_heatmap(corr, corr_dir/f'heatmap_{dataset_name}.png', data_type='corr')
+            self.logger.info(f"Plotted correlation heatmap ({dataset_name} data)")
 
     def _plot_corr_heatmap(self,
                            data: pd.core.frame.DataFrame,
@@ -868,7 +869,7 @@ class ModelExplain():
 
         # generate summary statistics for each dataset
         dataset_summary_statistics = {}
-        for X, y, dataset_name in tqdm(self.datasets):
+        for X, y, dataset_name in self.datasets:
 
             # compute basic summary statistics
             df = pd.concat([y, X], axis=1)
@@ -933,7 +934,7 @@ class ModelExplain():
             # write to csv
             summary_stats.index.name = 'feature'
             summary_stats.to_csv(summary_statistics_dir / f'summary_stats_{dataset_name}.csv')
-            self.logger.info(f'Generated summary stats for ({dataset_name} data)')
+            self.logger.info(f'Generated summary statistics ({dataset_name} data)')
 
             # compute quantiles
             if quantiles is None:  # set quantiles if not specified
@@ -948,7 +949,7 @@ class ModelExplain():
             # write to csv
             quantile_df.index.name = 'Feature'
             quantile_df.to_csv(summary_statistics_dir / f'quantiles_{dataset_name}.csv')
-            self.logger.info(f'Generated quantiles for ({dataset_name} data)')
+            self.logger.info(f'Generated quantiles ({dataset_name} data)')
 
             # compute top n value counts
             dfs = []
@@ -964,7 +965,7 @@ class ModelExplain():
             # write to csv
             all_value_counts = all_value_counts.reset_index().rename({"index": "Rank"}, axis=1)
             all_value_counts.to_csv(summary_statistics_dir / f'value_counts_{dataset_name}.csv', index=False)
-            self.logger.info(f'Generated value counts for ({dataset_name} data)')
+            self.logger.info(f'Generated value counts ({dataset_name} data)')
 
             # compute dataset summary statistics
             total_null_cnt = null_cnt.sum()
@@ -1156,7 +1157,7 @@ class ModelExplain():
 
             # save html export
             s.to_html(binary_splits_dir / f'binary_splits_{dataset_name}.html')
-            self.logger.info(f'Generated binary splits for ({dataset_name} data)')
+            self.logger.info(f'Generated binary splits ({dataset_name} data)')
 
 
     def xgb_explain(self) -> None:
