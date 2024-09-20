@@ -24,6 +24,14 @@ class XGBExperiment(Experiment):
 
         super().__init__(config_path)
 
+        # specific order for dataset_names (since last dataset is used for early stopping if enabled)
+        if self.hyperparameters.get("early_stopping_rounds"):
+            all_names = set(self.data_file_patterns)
+            main_names = {'train', 'test', 'validation'}
+            other_names = sorted(all_names.difference(main_names))
+            self.dataset_names = ['train'] + other_names
+            self.dataset_names.extend([n for n in ['test', 'validation'] if n in all_names])
+
     def validate_config(self) -> None:
         """Ensure that the config file is valid."""
 

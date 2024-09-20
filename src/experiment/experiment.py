@@ -179,13 +179,7 @@ class Experiment():
         # ------ Other -------
         self.data: Dict[str, Dict[str, Union[pd.core.frame.DataFrame, pd.core.series.Series]]] = {}  # where data will be stored
         self.aux_data: Dict[str, Union[pd.core.frame.DataFrame, pd.core.series.Series]] = {}  # where auxiliary fields will be stored
-
-        # specific order for dataset_names (since last dataset is used for early stopping if enabled)
-        all_names = set(self.data_file_patterns)
-        main_names = {'train', 'test', 'validation'}
-        other_names = sorted(all_names.difference(main_names))
-        self.dataset_names = ['train'] + other_names
-        self.dataset_names.extend([n for n in ['test', 'validation'] if n in all_names])
+        self.dataset_names = list(self.data_file_patterns)  # names of datasets
 
         # ------ Logging -------
         # make output dirs
