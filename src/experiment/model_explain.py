@@ -60,7 +60,7 @@ class ModelExplain():
 
         # check for valid input
         assert binary_classification is None or isinstance(binary_classification, bool), \
-            "binary_classification must be a boolean or None"
+            "`binary_classification` must be a boolean or None."
 
         if model is not None:
             self.model = model
@@ -154,7 +154,7 @@ class ModelExplain():
 
         self.logger.info("----- Generating Shap Charts -----")
 
-        assert self.model is not None, "self.model can't be None to run plot_shap()"
+        assert self.model is not None, "self.model can't be None to run plot_shap()."
         plt.close('all')
 
         # Generate Shap Charts
@@ -342,10 +342,10 @@ class ModelExplain():
 
         assert dt_field in self.datasets[0][0].columns \
             or dt_field in self.aux_data[0].columns, \
-            f"dt_field: {dt_field} should be a column in the dataset or aux_data"
+            f"`dt_field` = {dt_field} should be a column in the dataset or aux_data."
         assert "datetime_bin" not in self.datasets[0][0].columns \
             and "datetime_bin" not in self.aux_data[0].columns, \
-            "datetime_bin should not be a column in the dataset or aux_data, since this name will be used for binning"
+            "'datetime_bin' should not be a column in the dataset or aux_data, since this name will be used for binning"
 
         plt.close('all')
         savefig_kwargs = {'bbox_inches': 'tight', 'pad_inches': 0.2}
@@ -416,8 +416,8 @@ class ModelExplain():
         self.logger.info("----- Generating PSI -----")
 
         # check for valid input
-        assert bin_type in {'fixed', 'quantiles'}, "bin_type must be in {'fixed', 'quantiles'}"
-        assert self.model is not None, "self.model can't be None to run gen_psi()"
+        assert bin_type in {'fixed', 'quantiles'}, "`bin_type` must be in {'fixed', 'quantiles'}."
+        assert self.model is not None, "self.model can't be None to run gen_psi()."
 
         # make output directory
         psi_csi_dir = self.output_dir / 'psi_csi'
@@ -523,7 +523,7 @@ class ModelExplain():
         self.logger.info("----- Generating CSI -----")
 
         # check for valid input
-        assert bin_type in {'fixed', 'quantiles'}, "bin_type must be in {'fixed', 'quantiles'}"
+        assert bin_type in {'fixed', 'quantiles'}, "`bin_type` must be in {'fixed', 'quantiles'}."
 
         # make output directory
         psi_csi_dir = self.output_dir / 'psi_csi'
@@ -760,7 +760,7 @@ class ModelExplain():
 
         # check inputs
         valid_data_types = {'features', 'corr'}
-        assert data_type in valid_data_types, f"invalid data_type: {data_type}"
+        assert data_type in valid_data_types, f"Invalid `data_type`: {data_type}"
 
         # process data into long-format correlation matrix, if required
         if data_type == 'features':
@@ -1002,7 +1002,7 @@ class ModelExplain():
 
         self.logger.info("----- Generating Binary Splits Tables -----")
 
-        assert self.binary_classification, 'binary_classification must be set to True to generate binary splits'
+        assert self.binary_classification, '`binary_classification` must be set to True to generate binary splits'
 
         # define colour map functions for formatting the table later
         def colour_column(col) -> list[str]:
@@ -1178,7 +1178,7 @@ class ModelExplain():
 
         self.logger.info("----- Generating XGBoost Feature Importances -----")
 
-        assert isinstance(self.model, xgb.XGBModel), f'model is type {type(self.model)}, which is not an XGBoost Model'
+        assert isinstance(self.model, xgb.XGBModel), f'self.model is type {type(self.model)}, which is not an XGBoost Model.'
 
         # Get XGBoost feature importance
         imp_types = ['gain', 'total_gain', 'weight', 'cover', 'total_cover']  # importance types

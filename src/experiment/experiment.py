@@ -105,7 +105,7 @@ class Experiment():
         elif isinstance(self.aux_fields, str):
             self.aux_fields = [self.aux_fields]
         assert isinstance(self.aux_fields, list), \
-            f"self.aux_fields must be a list or string, not {type(self.aux_fields)}"
+            f"self.aux_fields must be a list or string, not {type(self.aux_fields)}."
         self.seed = int(self.config["seed"])
         random.seed(self.seed)
         np.random.seed(self.seed)
@@ -1044,8 +1044,8 @@ class Experiment():
 
         # Check input
         valid_types = {'uniform', 'quantile'}
-        assert bin_type in valid_types, f"bin_type must be in {valid_types}, not {bin_type}"
-        assert self.binary_classification, "binary_classification must be True for .calibrate()"
+        assert bin_type in valid_types, f"`bin_type` must be in {valid_types}, not {bin_type}."
+        assert self.binary_classification, "`binary_classification` must be True for .calibrate()."
 
         self.logger.info("----- Calibrating Model -----")
 

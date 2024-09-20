@@ -60,7 +60,7 @@ class XGBExperiment(Experiment):
         """
 
         super().load_model(model_obj, path)
-        assert isinstance(self.model, xgb.XGBModel), "self.model must be an XGBoost model"
+        assert isinstance(self.model, xgb.XGBModel), "self.model must be an XGBoost model."
 
     def train(self, **kwargs) -> None:
         """

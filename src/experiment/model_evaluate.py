@@ -32,7 +32,7 @@ def metric_score(y_true, y_score, metric: str) -> float:
     """
 
     valid_metrics = {'average_precision', 'aucpr', 'auc', 'log_loss', 'brier_loss'}
-    assert metric in valid_metrics, "invalid metric"
+    assert metric in valid_metrics, "Invalid metric."
 
     score: float
 
@@ -146,9 +146,9 @@ class ModelEvaluate():
         """
 
         assert self.model is not None or self.datasets_have_y_score, \
-            "self.model must not be None to run this method, unless self.datasets_have_y_score is True"
-        assert self.datasets is not None, "self.datasets must not be None to run this method"
-        assert self.output_dir is not None, "self.output_dir must not be None to run this method"
+            "self.model must not be None to run this method, unless self.datasets_have_y_score is True."
+        assert self.datasets is not None, "self.datasets must not be None to run this method."
+        assert self.output_dir is not None, "self.output_dir must not be None to run this method."
         plt.close('all')
 
         for X, y_true, dataset_name in self.datasets:
@@ -158,7 +158,7 @@ class ModelEvaluate():
             elif self.model is not None:
                 y_score = self.model.predict_proba(X)
             if y_score.ndim == 2:
-                assert y_score.shape[1] == 2, f'unexpected y_score shape: {y_score.shape}'
+                assert y_score.shape[1] == 2, f'Unexpected y_score shape: {y_score.shape}.'
                 y_score = y_score[:, 1]
 
             # Generate Precision/Recall vs Threshold
@@ -207,9 +207,10 @@ class ModelEvaluate():
                 e.g. ['Train', 'Test', 'Validation'] (train with validation last, since that's used for early stopping).
         """
 
-        assert isinstance(self.model, xgb.XGBModel), f'model is type {type(self.model)}, which is not an XGBoost Model'
-        assert self.output_dir is not None, "self.output_dir must not be None to run this method"
-        assert self.datasets is not None, "self.datasets must not be None to run this method"
+        assert isinstance(self.model, xgb.XGBModel), \
+            f'self.model is type {type(self.model)}, which is not an XGBoost Model.'
+        assert self.output_dir is not None, "self.output_dir must not be None to run this method."
+        assert self.datasets is not None, "self.datasets must not be None to run this method."
         plt.close('all')
 
         self.logger.info("----- Generating XGBoost Metrics -----")
@@ -218,7 +219,7 @@ class ModelEvaluate():
         default_names = list(self.model.evals_result().keys())  # default names for evaluation sets (e.g. ['validation_0', 'validation_1'])
         if dataset_names is None:  # use default names is no dataset names are passed in
             dataset_names = default_names
-        assert len(dataset_names) == len(default_names), "len(dataset_names) doesn't match training eval_set"
+        assert len(dataset_names) == len(default_names), "len(dataset_names) doesn't match training eval_set."
         name_pairs = list(zip(dataset_names, default_names))
         evals_result = self.model.evals_result() if self.model.evals_result() else {}
         eval_dict = evals_result.get(default_names[0], {})
@@ -511,7 +512,7 @@ class ModelEvaluate():
                 Difference between consecutive threshold values to evaluate performance at.
         """
 
-        assert 0 < increment < 1, f'increment={increment}, it should be >0 and <=1'
+        assert 0 < increment < 1, f'`increment`={increment}, it should be > 0 and <= 1.'
 
         # get data from numeric auxiliary fields to create additional metrics
         # (only works if the numeric field is also a feature in the dataset)
@@ -519,7 +520,7 @@ class ModelEvaluate():
         if self.aux_fields:
             idx = [i for i, (_, _, name) in enumerate(self.datasets) if name == dataset_name][0]
             assert isinstance(self.datasets[idx][0], pd.core.frame.DataFrame), \
-                f'Dataset {dataset_name} needs to be a dataframe if self.aux_fields is not empty, got {type(self.datasets[idx][0])}'
+                f'Dataset {dataset_name} needs to be a dataframe if self.aux_fields is not empty, got {type(self.datasets[idx][0])}.'
             numeric_fields = set(self.datasets[idx][0].select_dtypes([np.number]).columns)
             numeric_aux_fields = [f for f in self.aux_fields if f in numeric_fields]
             aux_data = self.datasets[idx][0][numeric_aux_fields]
@@ -635,7 +636,7 @@ class ModelEvaluate():
         """Generate Kolmogorov-Smirnov (KS) Statistic."""
 
         assert self.model is not None or self.datasets_have_y_score, \
-            "self.model must not be None to run this method, unless self.datasets_have_y_score is True"
+            "self.model must not be None to run this method, unless self.datasets_have_y_score is True."
 
         # intialize output table
         performance = []
@@ -647,7 +648,7 @@ class ModelEvaluate():
             elif self.model is not None:
                 y_score = self.model.predict_proba(X)
             if y_score.ndim == 2:
-                assert y_score.shape[1] == 2, f'unexpected y_score shape: {y_score.shape}'
+                assert y_score.shape[1] == 2, f'Unexpected y_score shape: {y_score.shape}.'
                 y_score = y_score[:, 1]
             ks_stat, p_value = ks_2samp(y_score[y_true == 0], y_score[y_true == 1])
             row = {'dataset': dataset_name, 'ks': ks_stat, 'p-value': p_value}

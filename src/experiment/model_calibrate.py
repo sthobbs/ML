@@ -89,7 +89,7 @@ class ModelCalibrate():
         # check for invalid input
         valid_types = {'isotonic', 'logistic'}
         assert calibration_type in valid_types, \
-            f"calibration_type must be in {valid_types}, not {calibration_type}"
+            f"`calibration_type` must be in {valid_types}, not {calibration_type}."
 
         # calibrate model
         idx = [i for i, (_, _, name) in enumerate(self.datasets) if name == train_dataset_name][0]
@@ -122,9 +122,9 @@ class ModelCalibrate():
 
         # check for invalid input
         valid_types = {'uniform', 'quantile'}
-        assert bin_type in valid_types, f"bin_type must be in {valid_types}, not {bin_type}"
-        assert isinstance(n_bins, int), f"n_bins must be an integer, not {n_bins}"
-        assert n_bins > 1, f"n_bins must be > 1, not {bin_type}"
+        assert bin_type in valid_types, f"`bin_type` must be in {valid_types}, not {bin_type}."
+        assert isinstance(n_bins, int), f"`n_bins` must be an integer, not {n_bins}."
+        assert n_bins > 1, f"`n_bins` must be > 1, not {n_bins}."
 
         # make directories and close existing figures
         comparison_dir = self.output_dir / 'comparison'
@@ -194,9 +194,9 @@ class ModelCalibrate():
 
         # check for invalid input
         valid_types = {'uniform', 'quantile'}
-        assert bin_type in valid_types, f"bin_type must be in {valid_types}, not {bin_type}"
-        assert isinstance(n_bins, int), f"n_bins must be an integer, not {n_bins}"
-        assert n_bins > 1, f"n_bins must be > 1, not {bin_type}"
+        assert bin_type in valid_types, f"`bin_type` must be in {valid_types}, not {bin_type}"
+        assert isinstance(n_bins, int), f"`n_bins` must be an integer, not {n_bins}."
+        assert n_bins > 1, f"`n_bins` must be > 1, not {n_bins}."
 
         with plt.style.context(self.plot_context):
 
@@ -342,7 +342,7 @@ class Calibrator():
         # check for invalid input
         valid_types = {'isotonic', 'logistic'}
         assert calibration_type in valid_types, \
-            f"calibration_type must be in {valid_types}, not {calibration_type}"
+            f"`calibration_type` must be in {valid_types}, not {calibration_type}."
 
         # make calibration model
         if calibration_type == 'isotonic':
