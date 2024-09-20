@@ -89,7 +89,7 @@ class XGBExperiment(Experiment):
     def evaluate(self, increment: float = 0.01) -> None:
         """
         Evaluate XGboost model and generate performance charts.
-        
+
         Parameters
         ----------
             increment : float

@@ -11,7 +11,7 @@ from tqdm import tqdm
 import matplotlib
 import matplotlib.pyplot as plt
 import xgboost as xgb
-from typing import Optional, List, Union, Tuple, Callable
+from typing import Optional, List, Union, Tuple
 import numpy.typing as npt
 from datetime import timedelta
 matplotlib.use('agg')
@@ -38,7 +38,7 @@ class ModelExplain():
                  logger: Optional[logging.Logger] = None) -> None:
         """
         Initialize the ModelExplain class.
-        
+
         Parameters
         ----------
             model :

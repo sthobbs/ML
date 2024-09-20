@@ -35,7 +35,7 @@ class ModelCalibrate():
                  logger: Optional[logging.Logger] = None) -> None:
         """
         Initialize the ModelCalibrate class.
-        
+
         Parameters
         ----------
             model :
@@ -332,7 +332,7 @@ class Calibrator():
     def __init__(self, calibration_type: str = 'isotonic') -> None:
         """
         Initialize calibration model.
-        
+
         Parameters
         ----------
             calibration_type : {'isotonic', 'logistic'}, default = 'logistic'

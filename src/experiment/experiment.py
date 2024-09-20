@@ -918,7 +918,7 @@ class Experiment():
     def evaluate(self, increment: float = 0.01) -> None:
         """
         Evaluate model and generate performance charts.
-        
+
         Parameters
         ----------
             increment : float
