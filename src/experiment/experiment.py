@@ -7,7 +7,6 @@ from sklearn.metrics import make_scorer
 from pathlib import Path
 from datetime import datetime
 from shutil import copyfile
-from tqdm import tqdm
 from hyperopt import fmin, rand, tpe, atpe, hp, STATUS_OK, Trials, pyll
 from dask.diagnostics import ProgressBar
 import dask.dataframe as dd
