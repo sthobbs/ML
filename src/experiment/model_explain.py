@@ -236,7 +236,10 @@ class ModelExplain():
                     plt.close()
                 self.logger.info(f'Plotted distribution plots ({dataset_name} data)')
 
-    def _get_histogram_bins(self, X_feature, y_true, exclude_outliers: bool = False) -> np.ndarray:
+    def _get_histogram_bins(self,
+                            X_feature,
+                            y_true,
+                            exclude_outliers: bool = False) -> npt.NDArray[np.float64]:
         """
         Get bins for histogram.
 
@@ -979,8 +982,8 @@ class ModelExplain():
             }
 
         # write dataset summary statistics to csv
-        dataset_summary_statistics = pd.DataFrame(dataset_summary_statistics)
-        dataset_summary_statistics.to_csv(summary_statistics_dir / 'dataset_summary_statistics.csv')
+        dataset_summary_statistics_df = pd.DataFrame(dataset_summary_statistics)
+        dataset_summary_statistics_df.to_csv(summary_statistics_dir / 'dataset_summary_statistics.csv')
 
     def gen_binary_splits(self, n_splits=10) -> None:
         """
@@ -997,7 +1000,7 @@ class ModelExplain():
         assert self.binary_classification, 'binary_classification must be set to True to generate binary splits'
 
         # define colour map functions for formatting the table later
-        def colour_column(col) -> Callable:
+        def colour_column(col) -> list[str]:
             """
             Return function that maps values in col above the median to green
             and below the median to red with a gradient.
@@ -1012,7 +1015,7 @@ class ModelExplain():
             max_val = col.max()
             med_val = col.median()
 
-            def colour_map(val: float) -> Tuple:
+            def colour_map(val: float) -> tuple[int, int, int]:
                 """
                 Map values above the median to green and below the
                 median to red with a gradient.

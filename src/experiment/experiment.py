@@ -829,13 +829,13 @@ class Experiment():
                 best_params[hyperparameter] = int(value)
 
         # save trial output
-        with open(self.log_dir/"parameter_tuning_trials.txt", "a") as file:
+        with open(self.log_dir/"parameter_tuning_trials.txt", "a") as f1:
             for trial in trials.trials:
-                file.write(str(trial))
-                file.write("\n\n")
+                f1.write(str(trial))
+                f1.write("\n\n")
         self.misc_dir.mkdir(exist_ok=True)
-        with open(self.misc_dir/"hyperopt_trials.pkl", "wb") as file:
-            pickle.dump(trials, file)
+        with open(self.misc_dir/"hyperopt_trials.pkl", "wb") as f2:
+            pickle.dump(trials, f2)
 
         return best_params
 
