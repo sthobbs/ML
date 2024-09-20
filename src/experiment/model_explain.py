@@ -37,10 +37,12 @@ class ModelExplain():
                  binary_classification: Optional[bool] = None,
                  logger: Optional[logging.Logger] = None) -> None:
         """
+        Initialize the ModelExplain class.
+        
         Parameters
         ----------
             model :
-                scikit-learn classifier with a .predict_proba() method.
+                Scikit-learn classifier with a .predict_proba() method.
             datasets :
                 List of (X, y, dataset_name) triples.
                 e.g. [(X_train, y_train, 'Train'), (X_val, y_val, 'Validation'), (X_test, y_test, 'Test')]
@@ -49,9 +51,11 @@ class ModelExplain():
                 Auxiliary data fields that aren't model features (e.g. timestamps).
                 List index corresponds to datasets index.
             output_dir : str, optional
-                string path to folder where output will be written.
+                String path to folder where output will be written.
+            binary_classification : bool, optional
+                If the model is a binary classification model.
             logger : logging.Logger, optional
-                logger.
+                Logger.
         """
 
         # check for valid input
@@ -107,11 +111,13 @@ class ModelExplain():
         Parameters
         ----------
             n_repeats : int, optional
-                number of times to permute each feature (default is 10)
+                Number of times to permute each feature (default is 10).
             metrics : str or list of str, optional
-                metrics used in permutation feature importance calculations (default is 'neg_log_loss').
+                Metrics used in permutation feature importance calculations (default is 'neg_log_loss').
                 e.g.: 'roc_auc', 'average_precision', 'neg_log_loss', 'r2', etc.
-                see https://scikit-learn.org/stable/modules/model_evaluation.html for complete list.
+                See https://scikit-learn.org/stable/modules/model_evaluation.html for complete list.
+            seed : int, optional
+                Random seed (default is 1).
         """
 
         self.logger.info("----- Generating Permutation Feature Importances -----")
@@ -142,8 +148,8 @@ class ModelExplain():
 
         Parameters
         ----------
-        shap_sample : int, optional
-            number of rows to sample from the dataset (default is None).
+            shap_sample : int, optional
+                Number of rows to sample from the dataset (default is None).
         """
 
         self.logger.info("----- Generating Shap Charts -----")
@@ -209,8 +215,8 @@ class ModelExplain():
 
         Parameters
         ----------
-        exclude_outliers : bool
-            whether to exclude outliers (default is False).
+            exclude_outliers : bool
+                Whether to exclude outliers (default is False).
         """
 
         self.logger.info("----- Generating Feature Distribution Charts -----")
@@ -222,7 +228,7 @@ class ModelExplain():
                 plot_dir = self.output_dir/"distribution"/dataset_name
                 plot_dir.mkdir(parents=True, exist_ok=True)  # make directory for distribution plots
                 for feature in tqdm(X.columns):
-                    bins = self._get_histogram_bins(X[feature], y, exclude_outliers)  # get bins for histogram
+                    bins = self._gen_histogram_bins(X[feature], y, exclude_outliers)  # get bins for histogram
                     plt.figure()
                     common_kwargs = {"stat": "probability", "bins": bins, "kde": False}
                     if self.binary_classification:  # plot distribution for each class
@@ -236,21 +242,21 @@ class ModelExplain():
                     plt.close()
                 self.logger.info(f'Plotted distribution plots ({dataset_name} data)')
 
-    def _get_histogram_bins(self,
+    def _gen_histogram_bins(self,
                             X_feature,
                             y_true,
                             exclude_outliers: bool = False) -> npt.NDArray[np.float64]:
         """
-        Get bins for histogram.
+        Generate bins for histogram.
 
         Parameters
         ----------
-        X_feature : pd.Series
-            feature values
-        y_true : pd.Series
-            target values
-        exclude_outliers : bool
-            whether to exclude extreme outliers from histogram (default is False).
+            X_feature : pd.Series
+                Feature values.
+            y_true : pd.Series
+                Target values.
+            exclude_outliers : bool
+                Whether to exclude extreme outliers from histogram (default is False).
         """
 
         # exclude extreme outliers
@@ -319,17 +325,17 @@ class ModelExplain():
                              dt_format: str = 'mixed',
                              n_bins: int = 15) -> None:
         """
-        Plot features over time using matplotlib
+        Plot features over time using matplotlib.
 
         Parameters
         ----------
-        dt_field: str
-            name of the datetime field in the dataset (default: 'timestamp')
-        dt_format: str
-            format of the datetime field in the dataset, example input includes
-            "%Y-%m-%d %H:%M:%S" or "%Y-%m-%d %H:%M:%S.%f" (default: 'mixed')
-        n_bins: int
-            number of bins to use for equal time intervals (default: 15)
+            dt_field: str
+                Name of the datetime field in the dataset (default: 'timestamp').
+            dt_format: str
+                Format of the datetime field in the dataset, example input includes
+                "%Y-%m-%d %H:%M:%S" or "%Y-%m-%d %H:%M:%S.%f" (default: 'mixed').
+            n_bins: int
+                Number of bins to use for equal time intervals (default: 15).
         """
 
         self.logger.info("----- Generating Feature vs Time Charts -----")
@@ -402,9 +408,9 @@ class ModelExplain():
         Parameters
         ----------
             bin_type : str, optional
-                the method for choosing bins, either 'fixed' or 'quantiles' (default is 'fixed')
+                The method for choosing bins, either 'fixed' or 'quantiles' (default is 'fixed').
             n_bins : int, optional
-                the number of bins used to compute psi (default is 10)
+                The number of bins used to compute psi (default is 10).
         """
 
         self.logger.info("----- Generating PSI -----")
@@ -460,14 +466,13 @@ class ModelExplain():
         Parameters
         ----------
             scores1 : numpy.ndarray or pandas.core.series.Series
-                scores for one of the datasets
+                Scores for one of the datasets.
             scores2 : numpy.ndarray or pandas.core.series.Series
-                scores for the other dataset
+                Scores for the other dataset.
             bin_type : str, optional
-                the method for choosing bins, either 'fixed' or 'quantiles' (default is 'fixed')
+                The method for choosing bins, either 'fixed' or 'quantiles' (default is 'fixed').
             n_bins : int, optional
-                the number of bins used to compute psi (default is 10)
-        ...
+                The number of bins used to compute psi (default is 10).
         """
 
         # get bins
@@ -510,9 +515,9 @@ class ModelExplain():
         Parameters
         ----------
             bin_type : str, optional
-                the method for choosing bins, either 'fixed' or 'quantiles' (default is 'fixed')
+                The method for choosing bins, either 'fixed' or 'quantiles' (default is 'fixed').
             n_bins : int, optional
-                the number of bins used to compute csi (default is 10)
+                The number of bins used to compute csi (default is 10).
         """
 
         self.logger.info("----- Generating CSI -----")
@@ -609,9 +614,9 @@ class ModelExplain():
         Parameters
         ----------
             bin_type : str, optional
-                the method for choosing bins, either 'fixed' or 'quantiles' (default is 'quantiles')
+                The method for choosing bins, either 'fixed' or 'quantiles' (default is 'quantiles').
             n_bins : int, optional
-                the number of bins used to compute woe and iv (default is 10)
+                The number of bins used to compute woe and iv (default is 10).
         """
 
         self.logger.info("----- Generating WOE and IV -----")
@@ -697,7 +702,7 @@ class ModelExplain():
         Parameters
         ----------
             max_features : int, optional
-                the maximum number of features allowed for charts and plots to be generated
+                The maximum number of features allowed for charts and plots to be generated.
         """
 
         self.logger.info("----- Generating Correlation -----")
@@ -741,12 +746,12 @@ class ModelExplain():
         Parameters
         ----------
             data : pandas.core.frame.DataFrame
-                input data, either raw data, or correlation matrix
+                Input data, either raw data, or correlation matrix.
             output_path : str
-                the location where the plot should be written.
-                note that this function assumes that the parent folder exists.
+                The location where the plot should be written.
+                Note that this function assumes that the parent folder exists.
             data_type : str, optional
-                the type of input passed into the data argument (default is 'corr')
+                The type of input passed into the data argument (default is 'corr').
                 - 'features' => the raw feature table is passed in
                 - 'corr' => a correlation matrix is passed in
 
@@ -853,14 +858,14 @@ class ModelExplain():
                                quantiles: Optional[List[float]] = None,
                                top_n_value_counts: int = 5) -> None:
         """
-        Generate summary statistics
+        Generate summary statistics.
 
         Parameters
         ----------
-        quantiles: Optional[List[float]]
-            List of quantiles to compute
-        top_n_value_counts: int
-            Number of top value counts to compute for each column
+            quantiles: Optional[List[float]]
+                List of quantiles to compute.
+            top_n_value_counts: int
+                Number of top value counts to compute for each column.
         """
 
         self.logger.info("----- Generating Summary Statistics -----")
@@ -991,8 +996,8 @@ class ModelExplain():
 
         Parameters
         ----------
-        n_splits: int
-            Number of splits to generate
+            n_splits: int
+                Number of splits to generate.
         """
 
         self.logger.info("----- Generating Binary Splits Tables -----")
@@ -1002,13 +1007,13 @@ class ModelExplain():
         # define colour map functions for formatting the table later
         def colour_column(col) -> list[str]:
             """
-            Return function that maps values in col above the median to green
-            and below the median to red with a gradient.
+            Map values in col above the median to green and below the median
+            to red with a gradient. Returns a list of formatted strings.
 
             Parameters
             ----------
-            col: pd.Series
-                Column to colour
+                col: pd.Series
+                    Column to colour.
             """
 
             min_val = col.min()
@@ -1022,8 +1027,8 @@ class ModelExplain():
 
                 Parameters
                 ----------
-                val: float
-                    Value to colour
+                    val: float
+                        Value to colour.
                 """
 
                 if val >= med_val:
@@ -1046,7 +1051,13 @@ class ModelExplain():
         def shade_every_other_row(col):
             """
             Colour every other row, except for the top level index.
+
+            Parameters
+            ----------
+                col: pd.Series
+                    Column to colour.
             """
+
             if col.name == 0:  # special case for top level index
                 return ['background-color: rgba(150, 150, 150, 0.5);'] * len(col)
             return ['background-color: rgba(220, 220, 220, 0.5);'

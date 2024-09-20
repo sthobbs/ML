@@ -5,7 +5,7 @@ import xgboost as xgb
 
 class XGBExperiment(Experiment):
     """
-    Class for training and evaluating XGBoost models
+    Class for training and evaluating XGBoost models.
 
     Author:
        Steve Hobbs
@@ -14,12 +14,12 @@ class XGBExperiment(Experiment):
 
     def __init__(self, config_path: str) -> None:
         """
-        Constructs attributes from a config file
+        Initializes XBGBoost experiment from a config file.
 
         Parameters
         ----------
             config_path : str
-                path to yaml config file
+                Path to yaml config file.
         """
 
         super().__init__(config_path)
@@ -52,11 +52,11 @@ class XGBExperiment(Experiment):
         Parameters
         ----------
             model_obj : str, optional
-                scikit-learn model object with a .predict_proba() method
-                (default is None)
+                Scikit-learn model object with a .predict_proba() method
+                (default is None).
             path : str, optional
-                file path to scikit-learn model object with a .predict_proba()
-                method (default is None)
+                File path to scikit-learn model object with a .predict_proba()
+                method (default is None).
         """
 
         super().load_model(model_obj, path)
@@ -64,8 +64,13 @@ class XGBExperiment(Experiment):
 
     def train(self, **kwargs) -> None:
         """
-        tune hyperparameters, then train a final XGBoost model with
+        Tune hyperparameters, then train a final XGBoost model with
         the tuned hyperparmeters.
+
+        Parameters
+        ----------
+            **kwargs : optional
+                Keyword arguments to pass to the model's .fit() method.
         """
 
         kwargs['verbose'] = self.verbose
@@ -82,7 +87,14 @@ class XGBExperiment(Experiment):
         self.model.save_model(self.model_dir/'model.ubj')
 
     def evaluate(self, increment: float = 0.01) -> None:
-        """Evaluate XGboost model and generate performance charts."""
+        """
+        Evaluate XGboost model and generate performance charts.
+        
+        Parameters
+        ----------
+            increment : float
+                Increment to use when generating charts.
+        """
 
         # generate general metrics
         super().evaluate(increment)

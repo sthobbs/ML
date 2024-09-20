@@ -34,17 +34,19 @@ class ModelCalibrate():
                  output_dir: Union[str, Path],
                  logger: Optional[logging.Logger] = None) -> None:
         """
+        Initialize the ModelCalibrate class.
+        
         Parameters
         ----------
             model :
-                scikit-learn classifier with a .predict_proba() method.
+                Scikit-learn classifier with a .predict_proba() method.
             datasets :
                 List of (X, y, dataset_name) triples.
                 e.g. [(X_train, y_train, 'Train'), (X_val, y_val, 'Validation'), (X_test, y_test, 'Test')]
             output_dir : str
-                string path to folder where output will be written.
+                String path to folder where output will be written.
             logger : logging.Logger, optional
-                logger.
+                Logger.
         """
 
         self.model = model
@@ -79,9 +81,9 @@ class ModelCalibrate():
         Parameters
         ----------
             train_dataset_name :  str
-                The name of the dataset to use to train the calibration model (usually 'validation')
+                The name of the dataset to use to train the calibration model (usually 'validation').
             calibration_type : {'isotonic', 'logistic'}, default = 'logistic'
-                The type of calibration model to fit
+                The type of calibration model to fit.
         """
 
         # check for invalid input
@@ -111,11 +113,11 @@ class ModelCalibrate():
         Parameters
         ----------
             bin_type : {'uniform', 'quantile'}, default = 'uniform'
-                Strategy used to define the widths of the bins for the calibration plots
+                Strategy used to define the widths of the bins for the calibration plots.
             n_bins : int > 1, default = 5
-                Number of bins to discretize the [0, 1] interval in the calibration plots
+                Number of bins to discretize the [0, 1] interval in the calibration plots.
             increment : float between 0 and 1,
-                the threshold increment used for performance evaluation of the calibrated model
+                The threshold increment used for performance evaluation of the calibrated model.
         """
 
         # check for invalid input
@@ -175,19 +177,19 @@ class ModelCalibrate():
         Parameters
         ----------
             y_true : array-like of shape (n_sample,)
-                ground truth labels.
+                Ground truth labels.
             y_score : array-like of shape (n_sample,)
-                model scores.
-            y_score : array-like of shape (n_sample,)
-                model scores after passing through a calibration function.
+                Model scores.
+            y_cal : array-like of shape (n_sample,)
+                Model scores after passing through a calibration function.
             dataset_name : str
-                the name of the dataset.
+                The name of the dataset.
             output_path : str
-                string path to location where output plot will be written.
+                String path to location where output plot will be written.
             bin_type : {'uniform', 'quantile'}, default = 'uniform'
-                Strategy used to define the widths of the bins for the calibration plots
+                Strategy used to define the widths of the bins for the calibration plots.
             n_bins : int > 1, default = 5
-                Number of bins to discretize the [0, 1] interval in the calibration plots
+                Number of bins to discretize the [0, 1] interval in the calibration plots.
         """
 
         # check for invalid input
@@ -225,18 +227,18 @@ class ModelCalibrate():
 
     def _plot_comparisons(self, y_true, y_score, y_cal, output_path: str) -> None:
         """
-        plot performance comparison charts.
+        Plot performance comparison charts.
 
         Parameters
         ----------
             y_true : array-like of shape (n_sample,)
-                ground truth labels.
+                Ground truth labels.
             y_score : array-like of shape (n_sample,)
-                model scores.
-            y_score : array-like of shape (n_sample,)
-                model scores after passing through a calibration function.
+                Model scores.
+            y_cal : array-like of shape (n_sample,)
+                Model scores after passing through a calibration function.
             output_path : str
-                string path to location where output plot will be written.
+                String path to location where output plot will be written.
         """
         # raw score
         fpr, tpr, _ = roc_curve(y_true, y_score)
@@ -299,16 +301,16 @@ class ModelCalibrate():
 
     def _calibration_mapping(self, fig_path: str, table_path: str, increment: float = 0.0001) -> None:
         """
-        plot performance comparison charts.
+        Plot performance comparison charts.
 
         Parameters
         ----------
-            increment : float between 0 and 1, default = 0.0001
-                The size of increment of values to map
             fig_path : str
-                string path to location where output plot will be written.
+                String path to location where output plot will be written.
             table_path : str
-                string path to location where output table will be written.
+                String path to location where output table will be written.
+            increment : float between 0 and 1, default = 0.0001
+                The size of increment of values to map.
         """
 
         # score calibration mapping
@@ -329,10 +331,12 @@ class Calibrator():
 
     def __init__(self, calibration_type: str = 'isotonic') -> None:
         """
+        Initialize calibration model.
+        
         Parameters
         ----------
             calibration_type : {'isotonic', 'logistic'}, default = 'logistic'
-                The type of calibration model to fit
+                The type of calibration model to fit.
         """
 
         # check for invalid input
@@ -355,9 +359,9 @@ class Calibrator():
         Parameters
         ----------
             y_score : array-like of shape (n_sample,)
-                model scores.
+                Model scores.
             y_true : array-like of shape (n_sample,)
-                ground truth labels.
+                Ground truth labels.
         """
 
         if y_score.ndim == 1:
@@ -371,7 +375,7 @@ class Calibrator():
         Parameters
         ----------
             y_score : array-like of shape (n_sample,)
-                model scores.
+                Model scores.
         """
 
         if y_score.ndim == 1:
@@ -388,7 +392,7 @@ class Calibrator():
         Parameters
         ----------
             output_path : str
-                string path to location where calibration model will be written.
+                String path to location where calibration model will be written.
         """
 
         with open(output_path, 'wb') as file:

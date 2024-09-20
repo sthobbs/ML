@@ -37,7 +37,7 @@ class ConfigError(Exception):
 
 class Experiment():
     """
-    Class for running ML model experiments
+    Class for running ML model experiments.
 
     Author:
        Steve Hobbs
@@ -46,12 +46,12 @@ class Experiment():
 
     def __init__(self, config_path: str) -> None:
         """
-        Constructs attributes from a config file
+        Initializes experiment from a config file.
 
         Parameters
         ----------
             config_path : str
-                path to yaml config file
+                Path to yaml config file.
         """
 
         print(f"----- Initializing {self.__class__.__name__} -----")
@@ -61,7 +61,7 @@ class Experiment():
             with open(config_path, "r") as f:
                 self.config = yaml.safe_load(f)
         except Exception as e:
-            raise ConfigError(f"error loading config file: {e}")
+            raise ConfigError(f"Error loading config file: {e}")
         self.validate_config()
 
         # Set variables
@@ -243,13 +243,13 @@ class Experiment():
         # check for missing required keys
         missing_required_keys = required_keys.difference(keys)
         if missing_required_keys:
-            msg = f"missing key(s) in config file: {', '.join(missing_required_keys)}"
+            msg = f"Missing key(s) in config file: {', '.join(missing_required_keys)}"
             raise ConfigError(msg)
 
         # check for non-valid keys
         unexpected_keys = keys.difference(valid_keys)
         if unexpected_keys:
-            msg = f"unexpected key(s) in config file: {', '.join(unexpected_keys)}"
+            msg = f"Unexpected key(s) in config file: {', '.join(unexpected_keys)}"
             raise ConfigError(msg)
 
         # check for keys with missing required values
@@ -261,18 +261,18 @@ class Experiment():
         # check for existence of train
         keys_with_vals = {k for k, v in self.config["data_file_patterns"].items() if v}
         if 'train' not in keys_with_vals:
-            raise ConfigError("missing train key or value within data_file_patterns")
+            raise ConfigError("Missing `train` key or value within `data_file_patterns`")
         # need test or validation if HP-tuning without CV
         if self.config.get("hyperparameter_tuning", False) \
                 and not self.config.get("cross_validation", False) \
                 and not ('validation' in keys_with_vals or 'test' in keys_with_vals):
-            msg = "either 'validation' or 'test' must have a path in data_file_patterns"
+            msg = "Either `validation` or `test` must have a path in data_file_patterns"
             raise ConfigError(msg)
 
         # check for score_dir value if we want to save model scores
         if self.config["save_scores"]:
             if not self.config.get("score_dir"):
-                raise ConfigError("missing score_dir key or value")
+                raise ConfigError("Missing `score_dir` key or value")
 
         # check performance_increment (either no key, None or castable to float between 0 and 1)
         performance_increment = self.config.get("performance_increment")
@@ -280,13 +280,13 @@ class Experiment():
             try:
                 performance_increment = float(performance_increment)
             except Exception as e:
-                raise ConfigError(f"shap_sample exception converting to int: {e}")
+                raise ConfigError(f"`shap_sample` exception converting to int: {e}")
             if not 0 < performance_increment < 1:
-                raise ConfigError("performance_increment must be between 0 and 1")
+                raise ConfigError("`performance_increment` must be between 0 and 1")
 
         # check that features is a list of length >= 1
         if type(self.config["features"]) is not list or len(self.config["features"]) < 1:
-            raise ConfigError("features must be a list with len >= 1")
+            raise ConfigError("`features` must be a list with len >= 1")
 
         # specify valid supervised and unsupervised models
         supervised_models = {
@@ -303,23 +303,23 @@ class Experiment():
         # check that model_type is valid
         model_type = self.config["model_type"]
         if self.config["model_type"] not in valid_model_types:
-            raise ConfigError(f"invalid model_type: {model_type}")
+            raise ConfigError(f"Invalid model_type: {model_type}")
 
         # check supervised is consistent with model_type
         if self.config["model_type"] in supervised_models and not self.config["supervised"]:
-            raise ConfigError(f"supervised should be True when model_type = {model_type}")
+            raise ConfigError(f"`supervised` should be True when `model_type` = {model_type}")
         if self.config["model_type"] in unsupervised_models and self.config["supervised"]:
-            raise ConfigError(f"supervised should be False when model_type = {model_type}")
+            raise ConfigError(f"`supervised` should be False when `model_type` = {model_type}")
 
         # check label is consistent with supervised
         if self.config["supervised"] and not self.config.get("label"):
-            raise ConfigError("need label when supervised = True")
+            raise ConfigError("need label when `supervised` = True")
 
         # check eval_metric
         if "eval_metric" in self.config.get("hyperparameters", []):
             if not isinstance(self.config["hyperparameters"]["eval_metric"], list):
                 if not isinstance(self.config["hyperparameters"]["eval_metric"], str):
-                    raise ConfigError("eval_metric should be a string or list")
+                    raise ConfigError("`eval_metric` should be a string or list")
                 eval_metric = [self.config["hyperparameters"]["eval_metric"]]
             else:
                 eval_metric = self.config["hyperparameters"]["eval_metric"]
@@ -330,7 +330,7 @@ class Experiment():
             }
             for m in eval_metric:
                 if m not in valid_metrics:
-                    raise ConfigError(f"{m} is not a valid eval_metric")
+                    raise ConfigError(f"{m} is not a valid `eval_metric`")
 
         # check that hyperparamter tuning algorithm is valid
         if self.config.get("hyperparameter_tuning", False):
@@ -339,43 +339,43 @@ class Experiment():
                 raise ConfigError(msg)
             # check grid_search_n_jobs
             if self.config["tuning_algorithm"] == "grid":
-                feature = self.config.get("grid_search_n_jobs", 1)
+                i = self.config.get("grid_search_n_jobs", 1)
                 try:
-                    feature = int(feature)
+                    i = int(i)
                 except Exception as e:
-                    raise ConfigError(f"{feature} exception converting to int: {e}")
-                if not (feature == -1 or feature >= 1):
-                    raise ConfigError("invalid grid_search_n_jobs value")
+                    raise ConfigError(f"Exception converting `grid_search_n_jobs` = {i} to int: {e}")
+                if not (i == -1 or i >= 1):
+                    raise ConfigError("Invalid grid_search_n_jobs value")
             # check tuning_iterations
             if self.config["tuning_algorithm"] in {"random", "tpe", "atpe"}:
                 if not self.config.get("tuning_iterations"):
-                    msg = "must specify tuning_iterations for the chosen tuning_algorithm"
+                    msg = "Must specify `tuning_iterations` for the chosen `tuning_algorithm`"
                     raise ConfigError(msg)
             valid_metrics = {'average_precision', 'aucpr', 'auc', 'log_loss', 'brier_loss'}
             if self.config.get("hyperparameter_eval_metric", "log_loss") not in valid_metrics:
-                raise ConfigError("invalid hyperparameter_eval_metric value")
+                raise ConfigError("Invalid `hyperparameter_eval_metric` value")
 
         # check that tuning_parameters is valid
         if self.config.get("hyperparameter_tuning", False):
             # check tuning_parameters has a value
             if not self.config["tuning_parameters"]:
-                msg = "when hyperparameter_tuning is True, tuning_parameters must be specified"
+                msg = "When `hyperparameter_tuning` is True, `tuning_parameters` must be specified"
                 raise ConfigError(msg)
             # check tuning_parameters is a dictionary
             if not isinstance(self.config["tuning_parameters"], dict):
-                msg = "when hyperparameter_tuning is True, tuning_parameters must be a dictionary"
+                msg = "When `hyperparameter_tuning` is True, `tuning_parameters` must be a dictionary"
                 raise ConfigError(msg)
             # for grid search, check that tuning_parameters specifies lists of possible values
             if self.config["tuning_algorithm"] == "grid":
                 for k, v in self.config["tuning_parameters"].items():
                     if not isinstance(v, list):
-                        raise ConfigError(f"The tuning_parameters value of {k} must be a list")
+                        raise ConfigError(f"The `tuning_parameters` value of {k} must be a list")
             # for hyperopt search, check that tuning_parameters specifies valid values
             if self.config["tuning_algorithm"] in {"random", "tpe", "atpe"}:
                 for hyperparameter, distribution in self.config["tuning_parameters"].items():
                     # check that both the function and params are specified
                     if set(distribution.keys()) != {'function', 'params'}:
-                        msg = (f"tuning_parameters.{hyperparameter} must contain"
+                        msg = (f"`tuning_parameters.{hyperparameter}` must contain"
                                " 'function' and 'params' keys, and no others")
                         raise ConfigError(msg)
                     func = distribution['function']
@@ -387,7 +387,7 @@ class Experiment():
                         "normal": {'mu', 'sigma'}
                     }
                     if set(distribution['params'].keys()) != func_to_params[func]:
-                        msg = (f"tuning_parameters.{hyperparameter}.params must contain"
+                        msg = (f"`tuning_parameters.{hyperparameter}.params` must contain"
                                f" the following keys and no others: {func_to_params[func]}.")
                         raise ConfigError(msg)
                     # check that all params have valid values
@@ -402,11 +402,11 @@ class Experiment():
                     for param, value in distribution['params'].items():
                         valid_type = param_to_datatype[param]
                         if not isinstance(value, valid_type):
-                            msg = (f"tuning_parameters.{hyperparameter}.params.{param} must"
+                            msg = (f"`tuning_parameters.{hyperparameter}.params.{param}` must"
                                    f" be of type: {valid_type}")
                             raise ConfigError(msg)
                         if param == "sigma" and value <= 0:
-                            msg = f"tuning_parameters.{hyperparameter}.params.{param} must be > 0"
+                            msg = f"`tuning_parameters.{hyperparameter}.params.{param}` must be > 0"
                             raise ConfigError(msg)
 
         # Note: Not checking perm_imp_metrics since there are many possible values that work
@@ -415,15 +415,15 @@ class Experiment():
         try:
             int(self.config.get("perm_imp_n_repeats", 10))
         except Exception as e:
-            raise ConfigError(f"perm_imp_n_repeats exception converting to int: {e}")
-
+            msg = f"Exception converting `perm_imp_n_repeats` = {self.config.get('perm_imp_n_repeats', 10)} to int: {e}"
+            raise ConfigError(msg)
         # check shap_sample (either no key, None or castable to int)
         shap_sample = self.config.get("shap_sample")
         if shap_sample is not None:
             try:
                 int(shap_sample)
             except Exception as e:
-                raise ConfigError(f"shap_sample exception converting to int: {e}")
+                raise ConfigError(f"Exception converting `shap_sample` = {shap_sample} to int: {e}")
 
         # check dt_field is is features or aux_fields
         if self.config.get("feature_vs_time") \
@@ -431,25 +431,25 @@ class Experiment():
                 and isinstance(self.config.get("dt_field"), str) \
                 and self.config["dt_field"] not in self.config.get("features", []) \
                 and self.config["dt_field"] not in self.config.get("aux_fields", []):
-            raise ConfigError("invalid dt_field value, must be in features or aux_fields")
+            raise ConfigError("Invalid dt_field value, must be in `features` or `aux_fields`")
 
         # check psi_bin_type, csi_bin_type, and woe_bin_type (no key, None, 'fixed' or 'quantiles')
         for feature in {'psi_bin_type', 'csi_bin_type', 'woe_bin_type'}:
             bin_type = self.config.get(feature)
             if bin_type not in {None, 'fixed', 'quantiles'}:
-                msg = f"if {feature} is present, it must be 'fixed', 'quantiles', or empty"
+                msg = f"If `{feature}` is present, it must be 'fixed', 'quantiles', or empty"
                 raise ConfigError(msg)
 
         # check calibration_type (no key, None, 'isotonic' or 'logistic')
         if self.config.get('calibration_type') not in {None, 'isotonic', 'logistic'}:
-            msg = "if 'calibration_type' is present, it must be 'isotonic', 'logistic', or empty"
+            msg = "If `calibration_type` is present, it must be 'isotonic', 'logistic', or empty"
             raise ConfigError(msg)
 
         # check calibration_train_dataset_name (must be valid dataset name)
         if self.config.get('model_calibration') and \
                 self.config.get('calibration_train_dataset_name') not in self.config.get("data_file_patterns", []):
-            msg = ("if 'model_calibration' is True, calibration_train_dataset_name must be a named"
-                   " dataset in data_file_patterns")
+            msg = ("If `model_calibration` is True, `calibration_train_dataset_name` must be a named"
+                   " dataset in `data_file_patterns`")
             raise ConfigError(msg)
 
         # check no key, None, or castable to int (>1))
@@ -459,9 +459,9 @@ class Experiment():
                 try:
                     int(num)
                 except Exception as e:
-                    raise ConfigError(f"{feature} exception converting to int: {e}")
+                    raise ConfigError(f"Exception converting `{feature}` = {num} to int: {e}")
                 if int(num) <= 1:
-                    raise ConfigError(f"if {feature} is an int, it should be > 1")
+                    raise ConfigError(f"If `{feature}` is an int, it should be > 1")
         # check no key, None, or castable to int (>=1))
         for feature in {'cv_folds', 'top_n_value_counts', 'n_splits'}:
             num = self.config.get(feature)
@@ -469,9 +469,9 @@ class Experiment():
                 try:
                     int(num)
                 except Exception as e:
-                    raise ConfigError(f"{feature} exception converting to int: {e}")
+                    raise ConfigError(f"Exception converting `{feature}` = {num} to int: {e}")
                 if int(num) < 1:
-                    raise ConfigError(f"if {feature} is an int, it should be >= 1")
+                    raise ConfigError(f"If `{feature}` is an int, it should be >= 1")
 
         # check required boolean keys
         boolean_keys = {
@@ -479,7 +479,7 @@ class Experiment():
         }
         for k in boolean_keys:
             if self.config[k] not in {True, False, None}:
-                raise ConfigError(f"{k} must be True, False, or empty")
+                raise ConfigError(f"`{k}` must be True, False, or empty")
 
         # check non-required boolean keys
         boolean_keys = {
@@ -490,15 +490,15 @@ class Experiment():
         }
         for k in boolean_keys:
             if self.config.get(k) not in {True, False, None}:
-                raise ConfigError(f"if {k} is present, it must be True, False, or empty")
+                raise ConfigError(f"If `{k}` is present, it must be True, False, or empty")
 
         # check quantiles (list of floats in [0, 1])
         if self.config.get('quantiles') is not None:
             if type(self.config["quantiles"]) is not list or len(self.config["quantiles"]) < 1:
-                raise ConfigError("quantiles must be a list with len >= 1")
+                raise ConfigError("`quantiles` must be a list with len >= 1")
             for q in self.config["quantiles"]:
                 if q < 0 or q > 1:
-                    raise ConfigError("quantiles must be a list with all floats in [0, 1]")
+                    raise ConfigError("`quantiles` must be a list with all floats in [0, 1]")
 
     def run(self) -> None:
         """Run a complete experiment including (depending on config):
@@ -551,11 +551,11 @@ class Experiment():
         Parameters
         ----------
             model_obj : optional
-                scikit-learn model object with a .predict_proba() method
-                (default is None)
+                Scikit-learn model object with a .predict_proba() method
+                (default is None).
             path : str, optional
-                file path to scikit-learn model object with a .predict_proba()
-                method (default is None)
+                File path to scikit-learn model object with a .predict_proba()
+                method (default is None).
         """
 
         # use generic scikit-learn model object (if passed in)
@@ -603,7 +603,7 @@ class Experiment():
         Parameters
         ----------
             path : str
-                file path to scikit-learn model object with a .predict_proba() method
+                File path to scikit-learn model object with a .predict_proba() method.
         """
 
         self.logger.info(f"Loading model object from {path}")
@@ -652,8 +652,13 @@ class Experiment():
 
     def train(self, **kwargs) -> None:
         """
-        tune hyperparameters, then train a final model with the tuned
+        Tune hyperparameters, then train a final model with the tuned
         hyperparmeters.
+
+        Parameters
+        ----------
+            **kwargs : optional
+                Keyword arguments to pass to the model's .fit() method.
         """
 
         # initialize and tune hyperparamters
@@ -769,6 +774,15 @@ class Experiment():
 
         # define optimization function
         def objective(param_dict):
+            """
+            Objective function for hyperopt to minimize.
+
+            Parameters
+            ----------
+            param_dict : dict
+                Dictionary of parameters to configure an scikit-learn model object.
+            """
+
             score = self._train_eval_iteration(param_dict)
             # if metric is to be maximized, then negate score, since objective() gets minimized
             if self.hyperparameter_eval_metric in {'average_precision', 'aucpr', 'auc'}:
@@ -777,6 +791,15 @@ class Experiment():
 
         # map param kwargs to positional args (since atpe only works with positional arguments)
         def kwargs_to_args(distribution):
+            """
+            Convert distribution kwargs to positional args.
+
+            Parameters
+            ----------
+            distribution : dict
+                Dictionary of distribution parameters.
+            """
+
             dist_func_str = distribution['function']
             params = distribution['params']
             if dist_func_str == "choice":
@@ -847,7 +870,7 @@ class Experiment():
         Parameters
         ----------
             param_dict : dict
-                dict of parameters to configure an scikit-learn model object
+                Dictionary of parameters to configure an scikit-learn model object.
         """
 
         start_time = time.time()
@@ -893,7 +916,14 @@ class Experiment():
         # TODO (?): also save pmml
 
     def evaluate(self, increment: float = 0.01) -> None:
-        """Evaluate model and generate performance charts."""
+        """
+        Evaluate model and generate performance charts.
+        
+        Parameters
+        ----------
+            increment : float
+                Increment to use when generating charts.
+        """
 
         if not self.supervised:
             return
@@ -982,7 +1012,7 @@ class Experiment():
             model_explain.xgb_explain()
 
     def gen_scores(self) -> None:
-        """Save model scores for each row"""
+        """Save model scores for each row."""
 
         self.logger.info("----- Generating Scores -----")
         self.score_dir.mkdir(exist_ok=True)
@@ -994,7 +1024,10 @@ class Experiment():
             df.to_csv(path, index=False)
             self.logger.info(f"Saved {dataset_name} scores to {path}")
 
-    def calibrate(self, calibration_type: str = 'logistic', bin_type: str = 'uniform', n_bins: int = 5) -> None:
+    def calibrate(self,
+                  calibration_type: str = 'logistic',
+                  bin_type: str = 'uniform',
+                  n_bins: int = 5) -> None:
         """
         Calibrate a binary classification model to output probability of true positive
         and generate performance metrics for the caalibrated model.
@@ -1002,11 +1035,11 @@ class Experiment():
         Parameters
         ----------
             calibration_type : {'isotonic', 'logistic'}, default = 'logistic'
-                The type of calibration model to fit
+                The type of calibration model to fit.
             bin_type : {'uniform', 'quantile'}, default = 'uniform'
-                Strategy used to define the widths of the bins for the calibration plots
+                Strategy used to define the widths of the bins for the calibration plots.
             n_bins : int > 1, default = 5
-                Number of bins to discretize the [0, 1] interval in the calibration plots
+                Number of bins to discretize the [0, 1] interval in the calibration plots.
         """
 
         # Check input

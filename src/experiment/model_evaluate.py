@@ -24,9 +24,9 @@ def metric_score(y_true, y_score, metric: str) -> float:
     Parameters
     ----------
         y_true : array-like of shape (n_sample,)
-            ground truth labels.
+            Ground truth labels.
         y_score : array-like of shape (n_sample,)
-            model scores.
+            Model scores.
         metric: {'average_precision', 'aucpr', 'auc', 'log_loss', 'brier_loss'}
             Metric used to measure performance.
     """
@@ -83,19 +83,19 @@ class ModelEvaluate():
         Parameters
         ----------
             model :
-                scikit-learn classifier with a .predict_proba() method.
+                Scikit-learn classifier with a .predict_proba() method.
             datasets :
                 List of (X, y, dataset_name) triples, or list of (y_score, y, dataset_name) triples
-                e.g. [(X_train, y_train, 'Train'), (X_val, y_val, 'Validation'), (X_test, y_test, 'Test')]
+                e.g. [(X_train, y_train, 'Train'), (X_val, y_val, 'Validation'), (X_test, y_test, 'Test')].
             datasets_have_y_score :
                 True if datasets is a list of (y_score, y, dataset_name) triples,
                 False if datasets is a list of (X, y, dataset_name) triples, (default is False).
             output_dir : str, optional
-                string path to folder where output will be written.
+                String path to folder where output will be written.
             aux_fields : list, optional
-                auxiliary fields to use to create additional metrics.
+                Auxiliary fields to use to create additional metrics.
             logger : logging.Logger, optional
-                logger.
+                Logger.
         """
 
         self.model = model
@@ -137,13 +137,12 @@ class ModelEvaluate():
     def binary_evaluate(self, increment: float = 0.01) -> None:
         """
         Generate plots and tables for a binary classification model.
-
-        class label values must be either 0 or 1.
+        Class label values must be either 0 or 1.
 
         Parameters
         ----------
             increment : float
-                threshold increment to use when checking performance on a sequence of thresholds
+                Threshold increment to use when checking performance on a sequence of thresholds.
         """
 
         assert self.model is not None or self.datasets_have_y_score, \
@@ -204,8 +203,8 @@ class ModelEvaluate():
         Parameters
         ----------
             dataset_names:
-                list of dataset names (in order) for the datasets passed into eval_set when the model was fit.
-                e.g. ['Train', 'Test', 'Validation'] (train with validation last, since that's used for early stopping)
+                List of dataset names (in order) for the datasets passed into eval_set when the model was fit.
+                e.g. ['Train', 'Test', 'Validation'] (train with validation last, since that's used for early stopping).
         """
 
         assert isinstance(self.model, xgb.XGBModel), f'model is type {type(self.model)}, which is not an XGBoost Model'
@@ -283,13 +282,13 @@ class ModelEvaluate():
         Parameters
         ----------
             precision : numpy.ndarray
-                model precision at various thresholds
+                Model precision at various thresholds.
             recall : numpy.ndarray
-                model recall at various thresholds
+                Model recall at various thresholds.
             thresholds : numpy.ndarray
-                various thresholds
+                Various thresholds.
             dataset_name : str
-                name of dataset to generate plot of
+                Name of dataset to generate plot of.
         """
 
         plt.figure()
@@ -317,15 +316,15 @@ class ModelEvaluate():
         Parameters
         ----------
             precision : numpy.ndarray
-                model precision at various thresholds
+                Model precision at various thresholds.
             recall : numpy.ndarray
-                model recall at various thresholds
+                Model recall at various thresholds.
             dataset_name : str
-                name of dataset to generate plot of
+                Name of dataset to generate plot of.
             average_precision : float
-                average precision of the model
+                Average precision of the model.
             precision_recall_auc : float
-                area under the PR curve of the model
+                Area under the PR curve of the model.
         """
 
         plt.figure()
@@ -357,13 +356,13 @@ class ModelEvaluate():
         Parameters
         ----------
             fpr : numpy.ndarray
-                false positive rate at various thresholds
+                False positive rate at various thresholds.
             tpr : numpy.ndarray
-                true positive rate at various thresholds
+                True positive rate at various thresholds.
             dataset_name : str
-                name of dataset to generate plot of
+                Name of dataset to generate plot of.
             roc_auc : float
-                area under the ROC curve of the model
+                Area under the ROC curve of the model.
         """
 
         plt.figure()
@@ -394,11 +393,11 @@ class ModelEvaluate():
         Parameters
         ----------
             fpr : numpy.ndarray
-                false positive rate at various thresholds
+                False positive rate at various thresholds.
             fnr : numpy.ndarray
-                false negative rate at various thresholds
+                False negative rate at various thresholds.
             dataset_name : str
-                name of dataset to generate plot of
+                Name of dataset to generate plot of.
         """
 
         plt.figure()
@@ -416,11 +415,11 @@ class ModelEvaluate():
         Parameters
         ----------
             y_true : array-like of shape (n_sample,)
-                ground truth labels.
+                Ground truth labels.
             y_score : array-like of shape (n_sample,)
-                model scores.
+                Model scores.
             dataset_name : str
-                name of dataset to generate plot of
+                Name of dataset to generate plot of.
         """
 
         total_cnt = len(y_true)
@@ -476,11 +475,11 @@ class ModelEvaluate():
         Parameters
         ----------
             y_true : array-like of shape (n_sample,)
-                ground truth labels.
+                Ground truth labels.
             y_score : array-like of shape (n_sample,)
-                model scores.
+                Model scores.
             dataset_name : str
-                name of dataset to generate plot of
+                Name of dataset to generate plot of.
         """
 
         plt.figure()
@@ -503,13 +502,13 @@ class ModelEvaluate():
         Parameters
         ----------
             y_true : array-like of shape (n_sample,)
-                ground truth labels.
+                Ground truth labels.
             y_score : array-like of shape (n_sample,)
-                model scores.
+                Model scores.
             dataset_name : str
-                name of dataset to generate plot of
+                Name of dataset to generate plot of.
             increment : float, default = 0.01
-                difference between consecutive threshold values to evaluate performance at
+                Difference between consecutive threshold values to evaluate performance at.
         """
 
         assert 0 < increment < 1, f'increment={increment}, it should be >0 and <=1'
@@ -603,19 +602,19 @@ class ModelEvaluate():
         Parameters
         ----------
             y_true : array-like of shape (n_sample,)
-                ground truth labels.
+                Ground truth labels.
             y_score : array-like of shape (n_sample,)
-                model scores.
+                Model scores.
             dataset_name : str
-                name of dataset to generate plot of
+                Name of dataset to generate plot of.
             roc_auc : float
-                area under the ROC curve of the model
+                Area under the ROC curve of the model.
             precision_recall_auc : float
-                area under the PR curve of the mode
+                Area under the PR curve of the mode.
             average_precision : float
-                average precision of the model
+                Average precision of the model.
             accuracy_ratio : float
-                accuracy ratio of the model
+                Accuracy ratio of the model.
         """
 
         log_loss_ = log_loss(y_true, y_score)  # cross entropy
