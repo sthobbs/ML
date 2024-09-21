@@ -693,7 +693,7 @@ class Experiment():
         fit_params = deepcopy(fit_params)
         if 'eval_set' in fit_params:
             fit_params['eval_set'] = [fit_params['eval_set'][-1]]
-        
+
         # if verbose is specified in kwargs, reduce verbosity for hyperparameter tuning
         if 'verbose' in fit_params:
             fit_params['verbose'] = None
@@ -716,7 +716,7 @@ class Experiment():
     def _grid_search_unparallelized(self, **fit_params) -> Dict[str, Union[str, int, float]]:
         """
         Tune hyperparameters with grid search.
-        
+
         Parameters
         ----------
             **fit_params : optional
@@ -742,7 +742,7 @@ class Experiment():
     def _grid_search(self, **fit_params) -> Dict[str, Union[str, int, float]]:
         """
         Tune hyperparameters with grid search (in parallel).
-        
+
         Parameters
         ----------
             **fit_params : optional
@@ -801,7 +801,7 @@ class Experiment():
     def _hyperopt_search(self, **fit_params) -> Dict[str, Union[str, int, float]]:
         """
         Tune hyperparameters with either random search, tpe, or atpe.
-        
+
         Parameters
         ----------
             **fit_params : optional

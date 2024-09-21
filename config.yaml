@@ -197,7 +197,7 @@ hyperparameters:
   reg_lambda: 1
   reg_alpha: 0
   scale_pos_weight: 1
-  # early_stopping_rounds: 50
+  # early_stopping_rounds: 50  # early stopping signifiicantly slows down hyperparameter tuning
   eval_metric: [auc, aucpr, error, logloss]  # last metric is used for early stopping (if applicable)
 # hyperparameters
   # required, type: dict (list of key-value pairs)
@@ -264,9 +264,6 @@ tuning_iterations: 30  # need to specify for random, tpe, or atpe
 
 
 ### Tuning Parameters
-# tuning_parameters:
-#   min_child_weight: [3]
-#   max_depth: [1, 2]
 # tuning_parameters
   # not required, default None, type: None or dict
   # meaning: specifies the distributions over which to search for hyperparameters
