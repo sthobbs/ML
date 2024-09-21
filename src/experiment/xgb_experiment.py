@@ -62,20 +62,20 @@ class XGBExperiment(Experiment):
         super().load_model(model_obj, path)
         assert isinstance(self.model, xgb.XGBModel), "self.model must be an XGBoost model."
 
-    def train(self, **kwargs) -> None:
+    def train(self, **fit_params) -> None:
         """
         Tune hyperparameters, then train a final XGBoost model with
         the tuned hyperparmeters.
 
         Parameters
         ----------
-            **kwargs : optional
+            **fit_params : optional
                 Keyword arguments to pass to the model's .fit() method.
         """
 
-        kwargs['verbose'] = self.verbose
-        kwargs['eval_set'] = [(self.data[n]['X'], self.data[n]['y']) for n in self.dataset_names]
-        super().train(**kwargs)
+        fit_params['verbose'] = self.verbose
+        fit_params['eval_set'] = [(self.data[n]['X'], self.data[n]['y']) for n in self.dataset_names]
+        super().train(**fit_params)
 
     def save_model(self) -> None:
         """Save the XGBoost model object as both .pkl and .bin files."""

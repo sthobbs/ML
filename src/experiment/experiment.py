@@ -7,6 +7,7 @@ from sklearn.metrics import make_scorer
 from pathlib import Path
 from datetime import datetime
 from shutil import copyfile
+from copy import deepcopy
 from hyperopt import fmin, rand, tpe, atpe, hp, STATUS_OK, Trials, pyll
 from dask.diagnostics import ProgressBar
 import dask.dataframe as dd
@@ -17,7 +18,7 @@ import pickle
 import time
 import random
 import logging
-from typing import Union, Optional, Dict, Tuple
+from typing import Union, Optional, Dict, Tuple, Any
 from experiment.model_evaluate import ModelEvaluate, metric_score
 from experiment.model_explain import ModelExplain
 from experiment.model_calibrate import ModelCalibrate
@@ -650,28 +651,33 @@ class Experiment():
             # store aux data (in separate object so that **self.data[name] can be used)
             self.aux_data[name] = df[self.aux_fields]
 
-    def train(self, **kwargs) -> None:
+    def train(self, **fit_params) -> None:
         """
         Tune hyperparameters, then train a final model with the tuned
         hyperparmeters.
 
         Parameters
         ----------
-            **kwargs : optional
+            **fit_params : optional
                 Keyword arguments to pass to the model's .fit() method.
         """
 
         # initialize and tune hyperparamters
-        self.tune_hyperparameters()
+        self.tune_hyperparameters(**fit_params)
 
         # train model with optimal paramaters
         self.logger.info("----- Training Final Model -----")
-        self.model.fit(**self.data['train'], **kwargs)
+        self.model.fit(**self.data['train'], **fit_params)
 
-    def tune_hyperparameters(self) -> None:
+    def tune_hyperparameters(self, **fit_params) -> None:
         """
         Tune hyperparameters with either grid search, random search, tpe,
         or atpe.
+
+        Parameters
+        ----------
+            **fit_params : optional
+                Keyword arguments to pass to the model's .fit() method.
         """
 
         # initialize hyperparamters
@@ -683,13 +689,22 @@ class Experiment():
 
         self.logger.info(f"----- Tuning Hyperparameters (via {self.tuning_algorithm} search) -----")
 
+        # if eval_set is specified in kwargs, only use last eval_set
+        fit_params = deepcopy(fit_params)
+        if 'eval_set' in fit_params:
+            fit_params['eval_set'] = [fit_params['eval_set'][-1]]
+        
+        # if verbose is specified in kwargs, reduce verbosity for hyperparameter tuning
+        if 'verbose' in fit_params:
+            fit_params['verbose'] = None
+
         # run grid search (if configured)
         if self.tuning_algorithm == 'grid':
-            best_params = self._grid_search()
+            best_params = self._grid_search(**fit_params)
 
         # run random search, tpe, or atpe hyperparameter optimization algorithm
         elif self.tuning_algorithm in {"random", "tpe", "atpe"}:
-            best_params = self._hyperopt_search()
+            best_params = self._hyperopt_search(**fit_params)
 
         # write best params to file
         with open(self.log_dir/"parameter_tuning_log.txt", "a") as file:
@@ -698,15 +713,22 @@ class Experiment():
         # set model to use best paramaters
         self.model.set_params(**best_params)
 
-    def _grid_search_unparallelized(self) -> Dict[str, Union[str, int, float]]:
-        """Tune hyperparameters with grid search."""
+    def _grid_search_unparallelized(self, **fit_params) -> Dict[str, Union[str, int, float]]:
+        """
+        Tune hyperparameters with grid search.
+        
+        Parameters
+        ----------
+            **fit_params : optional
+                Keyword arguments to pass to the model's .fit() method.
+        """
 
         # Grid search all possible combinations
         param_dict_list = ParameterGrid(self.tuning_parameters)
         scores = []
         for i, param_dict in enumerate(param_dict_list):
             self.logger.info(f"{i+1} out of {len(param_dict_list)}")
-            score = self._train_eval_iteration(param_dict)
+            score = self._train_eval_iteration(param_dict, **fit_params)
             scores.append(score)
 
         # get parameter set with best score
@@ -717,8 +739,15 @@ class Experiment():
         best_params: Dict[str, Union[str, int, float]] = param_dict_list[best(scores)]
         return best_params
 
-    def _grid_search(self) -> Dict[str, Union[str, int, float]]:
-        """Tune hyperparameters with grid search (in parallel)."""
+    def _grid_search(self, **fit_params) -> Dict[str, Union[str, int, float]]:
+        """
+        Tune hyperparameters with grid search (in parallel).
+        
+        Parameters
+        ----------
+            **fit_params : optional
+                Keyword arguments to pass to the model's .fit() method.
+        """
 
         # make evaluation scorer
         metric = self.hyperparameter_eval_metric
@@ -745,7 +774,7 @@ class Experiment():
         model = GridSearchCV(**gs_kwargs)
 
         # Grid search all possible combinations
-        model.fit(X, y)
+        model.fit(X, y, **fit_params)
 
         # get GridSearchCV metrics
         scores = model.cv_results_['mean_test_score']
@@ -769,8 +798,15 @@ class Experiment():
         best_params: Dict[str, Union[str, int, float]] = param_dict_list[best(scores)]
         return best_params
 
-    def _hyperopt_search(self) -> Dict[str, Union[str, int, float]]:
-        """Tune hyperparameters with either random search, tpe, or atpe."""
+    def _hyperopt_search(self, **fit_params) -> Dict[str, Union[str, int, float]]:
+        """
+        Tune hyperparameters with either random search, tpe, or atpe.
+        
+        Parameters
+        ----------
+            **fit_params : optional
+                Keyword arguments to pass to the model's .fit() method.
+        """
 
         # define optimization function
         def objective(param_dict):
@@ -783,7 +819,7 @@ class Experiment():
                 Dictionary of parameters to configure an scikit-learn model object.
             """
 
-            score = self._train_eval_iteration(param_dict)
+            score = self._train_eval_iteration(param_dict, **fit_params)
             # if metric is to be maximized, then negate score, since objective() gets minimized
             if self.hyperparameter_eval_metric in {'average_precision', 'aucpr', 'auc'}:
                 score = -score
@@ -862,7 +898,9 @@ class Experiment():
 
         return best_params
 
-    def _train_eval_iteration(self, param_dict: Dict[str, Union[str, int, float]]) -> float:
+    def _train_eval_iteration(self,
+                              param_dict: Dict[str, Union[str, int, float]],
+                              **fit_params: Any) -> float:
         """
         Run one iteration of training and evaluating a model for
         hyperparameter tuning.
@@ -871,6 +909,8 @@ class Experiment():
         ----------
             param_dict : dict
                 Dictionary of parameters to configure an scikit-learn model object.
+            **fit_params : optional
+                Keyword arguments to pass to the model's .fit() method.
         """
 
         start_time = time.time()
@@ -885,11 +925,14 @@ class Experiment():
             # make evaluation scorer
             scorer = make_scorer(metric_score, metric=metric)
             # run cv to train and evaluate model
-            cv_scores = cross_val_score(self.model, **self.data['train'], scoring=scorer)
+            cv_scores = cross_val_score(self.model,
+                                        **self.data['train'],
+                                        scoring=scorer,
+                                        fit_params=fit_params)
             score = cv_scores.mean()
         else:
             # train model
-            self.model.fit(**self.data['train'])
+            self.model.fit(**self.data['train'], **fit_params)
             # evaluate model (based on self.hyperparameter_eval_metric)
             val_name = 'validation' if 'validation' in self.data else 'test'
             y_true = self.data[val_name]['y']
@@ -1076,3 +1119,5 @@ class Experiment():
                 handler.close()
 
         # TODO? ...
+
+        self.logger.info("----- Experiment Finished -----")
