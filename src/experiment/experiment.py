@@ -710,8 +710,15 @@ class Experiment():
 
         self.logger.info(f"----- Tuning Hyperparameters (via {self.tuning_algorithm} search) -----")
 
-        # if eval_set is specified in kwargs, only use last eval_set
+        # if there is no early stopping, then remove eval_set for efficiency
         fit_params = deepcopy(fit_params)
+        if 'eval_set' in fit_params:
+            possible_params = self.hyperparameters | self.tuning_parameters
+            if not ('early_stopping_round' in possible_params or
+                    'early_stopping_rounds' in possible_params):  # singular and plural
+                fit_params.pop('eval_set')
+
+        # if eval_set is specified in kwargs, only use last eval_set
         if 'eval_set' in fit_params:
             fit_params['eval_set'] = [fit_params['eval_set'][-1]]
 
@@ -793,14 +800,6 @@ class Experiment():
             ps = PredefinedSplit(split_index)
             gs_kwargs['cv'] = ps
         model = GridSearchCV(**gs_kwargs)
-
-        # if there is no early stopping, then remove eval_set for efficiency
-        if 'eval_set' in fit_params:
-            possible_params = self.hyperparameters | self.tuning_parameters
-            if not ('early_stopping_round' in possible_params or
-                    'early_stopping_rounds' in possible_params):  # singular and plural
-                fit_params = deepcopy(fit_params)
-                fit_params.pop('eval_set')
 
         # Grid search all possible combinations
         model.fit(X, y, **fit_params)
@@ -948,13 +947,6 @@ class Experiment():
 
         self.model.set_params(**param_dict)
         metric = self.hyperparameter_eval_metric
-
-        # if there is no early stopping, then remove eval_set for efficiency
-        if 'eval_set' in fit_params:
-            if not (self.model.get_params().get('early_stopping_round', 0) > 0 or
-                    self.model.get_params().get('early_stopping_rounds', 0) > 0):  # singular and plural
-                fit_params = deepcopy(fit_params)
-                fit_params.pop('eval_set')
 
         # train model
         if self.cross_validation:
