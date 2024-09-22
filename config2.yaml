@@ -178,7 +178,7 @@ seed: 32
 
 
 ### Model Fit Parameters
-# verbose: -1  # for XGBoost models
+# verbose: 100  # for XGBoost models
 eval_metric: [auc, binary_error, binary_logloss]  # for LightGBM models
 # verbose (for XGBoost models)
   # not required, default 10, type: None or int (or str that casts to int)

@@ -253,7 +253,7 @@ class ModelEvaluate():
         df = pd.DataFrame(index=metrics, columns=dataset_names)
         df.index.name = 'Metric'
         metrics_to_minimize = {
-            'rmse', 'rmsle', 'mae', 'mape', 'mphe', 'logloss', 'binary_logloss', 
+            'rmse', 'rmsle', 'mae', 'mape', 'mphe', 'logloss', 'binary_logloss',
             'error', 'binary_error', 'merror', 'mlogloss', 'poisson-nloglik',
             'gamma-nloglik', 'cox-nloglik', 'gamma-deviance', 'tweedie-nloglik',
             'aft-nloglik'
@@ -320,7 +320,7 @@ class ModelEvaluate():
         df = pd.DataFrame(index=metrics, columns=dataset_names)
         df.index.name = 'Metric'
         metrics_to_minimize = {
-            'rmse', 'rmsle', 'mae', 'mape', 'mphe', 'logloss', 'binary_logloss', 
+            'rmse', 'rmsle', 'mae', 'mape', 'mphe', 'logloss', 'binary_logloss',
             'error', 'binary_error', 'merror', 'mlogloss', 'poisson-nloglik',
             'gamma-nloglik', 'cox-nloglik', 'gamma-deviance', 'tweedie-nloglik',
             'aft-nloglik'

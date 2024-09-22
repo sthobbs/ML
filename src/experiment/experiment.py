@@ -115,7 +115,7 @@ class Experiment():
         self.eval_metric = self.config.get('eval_metric')
         if self.eval_metric is None or self.eval_metric in ('', []):
             self.eval_metric = 'logloss'
-        
+
         # ------ Hyperparameters -------
         self.hyperparameters = self.config["hyperparameters"]
         if self.hyperparameters is None:
@@ -225,7 +225,7 @@ class Experiment():
         other_valid_keys = {
             'input_model_path', 'score_dir', 'log_dir', 'calibration_dir',
             'misc_dir', 'performance_increment', 'label', 'aux_fields',
-            'verbose', 'eval_metric', 'hyperparameter_tuning', 
+            'verbose', 'eval_metric', 'hyperparameter_tuning',
             'hyperparameter_eval_metric', 'cross_validation', 'cv_folds',
             'tuning_algorithm', 'grid_search_n_jobs',  'tuning_iterations',
             'tuning_parameters', 'permutation_importance', 'perm_imp_metrics',
@@ -341,12 +341,12 @@ class Experiment():
                 if m not in valid_metrics:
                     raise ConfigError(f"{m} is not a valid `eval_metric`")
         if self.config.get("eval_metric"):
-            eval_metric = self.config["eval_metric"]
-            if isinstance(eval_metric, str):
-                if eval_metric not in valid_metrics:
-                    raise ConfigError(f"{eval_metric} is not a valid `eval_metric`")
-            elif isinstance(eval_metric, list):
-                for m in eval_metric:
+            metric = self.config["eval_metric"]
+            if isinstance(metric, str):
+                if metric not in valid_metrics:
+                    raise ConfigError(f"{metric} is not a valid `eval_metric`")
+            elif isinstance(metric, list):
+                for m in metric:
                     if m not in valid_metrics:
                         raise ConfigError(f"{m} is not a valid `eval_metric`")
             else:
@@ -797,7 +797,7 @@ class Experiment():
         # if there is no early stopping, then remove eval_set for efficiency
         if 'eval_set' in fit_params:
             possible_params = self.hyperparameters | self.tuning_parameters
-            if not ('early_stopping_round' in possible_params or \
+            if not ('early_stopping_round' in possible_params or
                     'early_stopping_rounds' in possible_params):  # singular and plural
                 fit_params = deepcopy(fit_params)
                 fit_params.pop('eval_set')
@@ -951,7 +951,7 @@ class Experiment():
 
         # if there is no early stopping, then remove eval_set for efficiency
         if 'eval_set' in fit_params:
-            if not (self.model.get_params().get('early_stopping_round', 0) > 0 or \
+            if not (self.model.get_params().get('early_stopping_round', 0) > 0 or
                     self.model.get_params().get('early_stopping_rounds', 0) > 0):  # singular and plural
                 fit_params = deepcopy(fit_params)
                 fit_params.pop('eval_set')
