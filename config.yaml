@@ -97,6 +97,7 @@ model_type: XGBClassifier
   # valid values
     # when supervised is True:
       # XGBClassifier, XGBRegressor,
+      # LGBMClassifier, LGBMRegressor,
       # RandomForestClassifier, RandomForestRegressor,
       # DecisionTreeClassifier, DecisionTreeRegressor,
       # MLPClassifier, MLPRegressor,
@@ -168,18 +169,25 @@ aux_fields:
   # meaning: list of auxiliary fields to use to create additional metrics (must also be in features)
 
 
-### Other
+### Miscellaneous
 seed: 32
-verbose: 100
 # seed
   # required, type: int (or str that casts to int)
   # valid values: any integer
   # meaning: seed to initialize random number generator. Needed for reproducibility. 
-# verbose
+
+
+### Model Fit Parameters
+verbose: 100  # for XGBoost models
+# eval_metric: [auc, binary_error, binary_logloss]  # for LightGBM models
+# verbose (for XGBoost models)
   # not required, default 10, type: None or int (or str that casts to int)
   # valid values: None or int > 0
-  # meaning: how frequently to print output (only applies to XGBoost models)
-
+  # meaning: how frequently to print output
+# eval_metric (for LightGBM models)
+  # not required, default 'logloss', type: None, str, or list
+  # valid values (or list elements): built-in sklearn evaluation metrics
+  # meaning: metrics to use during training (including for early stopping)
 
 # ----------------------------------
 # -------- Hyperparameters ---------
@@ -197,7 +205,7 @@ hyperparameters:
   reg_lambda: 1
   reg_alpha: 0
   scale_pos_weight: 1
-  # early_stopping_rounds: 50  # early stopping signifiicantly slows down hyperparameter tuning
+  # early_stopping_rounds: 50  # early stopping slows down hyperparameter tuning because it requires eval_set
   eval_metric: [auc, aucpr, error, logloss]  # last metric is used for early stopping (if applicable)
 # hyperparameters
   # required, type: dict (list of key-value pairs)
