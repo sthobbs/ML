@@ -11,6 +11,7 @@ from tqdm import tqdm
 import matplotlib
 import matplotlib.pyplot as plt
 import xgboost as xgb
+import lightgbm as lgb
 from typing import Optional, List, Union, Tuple
 import numpy.typing as npt
 from datetime import timedelta
@@ -1199,3 +1200,35 @@ class ModelExplain():
         importance_dir = self.output_dir / "feature_importance"
         importance_dir.mkdir(parents=True, exist_ok=True)
         df.to_csv(importance_dir/'xgb_feature_importance.csv')
+
+    def lgb_explain(self) -> None:
+        """Generate model explanitory charts specific to LightGBM models."""
+
+        self.logger.info("----- Generating LightGBM Feature Importances -----")
+
+        assert isinstance(self.model, lgb.LGBMModel), f'self.model is type {type(self.model)}, which is not an LightGBM Model.'
+
+        # Get LightGBM feature importance
+        imp_types = ['gain', 'split']  # importance types
+        bstr = self.model.booster_
+        imps = [pd.Series(bstr.feature_importance(importance_type=t), name=t) for t in imp_types]
+        df = pd.concat(imps, axis=1)  # dataframe of importances
+        df = df.apply(lambda x: x / x.sum(), axis=0)  # normalize so each column sums to 1
+        df.index = self.model.feature_name_
+
+        # sort and save
+        df.sort_values('gain', ascending=False, inplace=True)
+        importance_dir = self.output_dir / "feature_importance"
+        importance_dir.mkdir(parents=True, exist_ok=True)
+        df.to_csv(importance_dir/'lgb_feature_importance.csv')
+
+        # plot feature importance
+        with plt.style.context(self.plot_context):
+            plt.figure()
+            for imp_type in imp_types:
+                lgb.plot_importance(self.model, importance_type=imp_type)
+                plt.title(f"Feature Importance ({imp_type})")
+                plt.legend(bbox_to_anchor=(0.94, 0.055), loc='lower right', borderaxespad=0, frameon=True)
+                plt.savefig(f'{importance_dir}/lgb_importance_by_{imp_type}.png')
+                self.logger.info(f'Plotted LightGBM feature importance ({imp_type})')
+            plt.close()
