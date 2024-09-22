@@ -4,6 +4,7 @@ from sklearn.metrics import average_precision_score, precision_recall_curve, \
     roc_auc_score
 from sklearn.base import BaseEstimator
 import xgboost as xgb
+import lightgbm as lgb
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
@@ -235,7 +236,7 @@ class ModelEvaluate():
                 plt.xlabel('n_estimators')
                 plt.ylabel(metric)
                 plt.title(f'n_estimators vs {metric}')
-                plt.legend(bbox_to_anchor=(1, 1.02), loc='lower right', borderaxespad=0, frameon=True)
+                plt.legend(borderaxespad=0.5, frameon=True)
                 plt.savefig(f'{self.plots_subdir}/n_estimators_vs_{metric}.png', bbox_inches='tight', pad_inches=0.3)
                 plt.clf()
                 self.logger.info(f'Plotted n_estimators vs {metric}')
@@ -252,9 +253,10 @@ class ModelEvaluate():
         df = pd.DataFrame(index=metrics, columns=dataset_names)
         df.index.name = 'Metric'
         metrics_to_minimize = {
-            'rmse', 'rmsle', 'mae', 'mape', 'mphe', 'logloss', 'error',
-            'merror', 'mlogloss', 'poisson-nloglik', 'gamma-nloglik', 'cox-nloglik',
-            'gamma-deviance', 'tweedie-nloglik', 'aft-nloglik'
+            'rmse', 'rmsle', 'mae', 'mape', 'mphe', 'logloss', 'binary_logloss', 
+            'error', 'binary_error', 'merror', 'mlogloss', 'poisson-nloglik',
+            'gamma-nloglik', 'cox-nloglik', 'gamma-deviance', 'tweedie-nloglik',
+            'aft-nloglik'
         }
         metrics_to_maximize = {'auc', 'aucpr'}
         for metric in metrics:
@@ -267,6 +269,73 @@ class ModelEvaluate():
                 continue
             for dataset_name, default_name in name_pairs:
                 n_estimator_performance = np.array(evals_result.get(default_name, {}).get(metric))
+                best_n_estimators = f(n_estimator_performance) + 1
+                df.at[metric, dataset_name] = best_n_estimators
+        df.to_csv(f'{self.tables_subdir}/optimal_n_estimators.csv')
+        self.logger.info('Generated optimal n_estimators table')
+
+    def lgb_evaluate(self) -> None:
+        """
+        Generate plots and tables specific to LightGBM models.
+        """
+
+        assert isinstance(self.model, lgb.LGBMModel), \
+            f'self.model is type {type(self.model)}, which is not an LightGBM Model.'
+        assert self.output_dir is not None, "self.output_dir must not be None to run this method."
+        assert self.datasets is not None, "self.datasets must not be None to run this method."
+        plt.close('all')
+
+        self.logger.info("----- Generating LightGBM Metrics -----")
+
+        # Plot training metrics vs n_estimators
+        dataset_names = list(self.model.evals_result_.keys())  # default names for evaluation sets (e.g. ['validation_0', 'validation_1'])
+        evals_result = self.model.evals_result_ if self.model.evals_result_ else {}
+        eval_dict = evals_result.get(dataset_names[0], {})
+        metrics = list(eval_dict.keys())  # evaluation metrics used in training (e.g. ['aucpr', 'logloss'])
+        n_estimators = len(eval_dict.get(metrics[0], []))  # max n_estimators
+        plt.figure()
+        with plt.style.context(self.plot_context):
+            for metric in metrics:
+                for dataset_name in dataset_names:
+                    metric_vals = evals_result.get(dataset_name, {}).get(metric)
+                    if metric_vals is not None:
+                        plt.plot(range(1, n_estimators+1), metric_vals, label=dataset_name)
+                plt.xlabel('n_estimators')
+                plt.ylabel(metric)
+                plt.title(f'n_estimators vs {metric}')
+                plt.legend(borderaxespad=0.5, frameon=True)
+                plt.savefig(f'{self.plots_subdir}/n_estimators_vs_{metric}.png', bbox_inches='tight', pad_inches=0.3)
+                plt.clf()
+                self.logger.info(f'Plotted n_estimators vs {metric}')
+        plt.close()
+
+        # Generate n_estimates vs training metrics tables
+        for dataset_name in dataset_names:
+            df = pd.DataFrame(evals_result.get(dataset_name), index=range(1, n_estimators+1))
+            df.index.name = 'n_estimators'
+            df.to_csv(f'{self.tables_subdir}/n_estimators_vs_metrics_{dataset_name}.csv')
+            self.logger.info(f'Generated n_estimators vs metrics table ({dataset_name} data)')
+
+        # Generate optimal n_estimates table
+        df = pd.DataFrame(index=metrics, columns=dataset_names)
+        df.index.name = 'Metric'
+        metrics_to_minimize = {
+            'rmse', 'rmsle', 'mae', 'mape', 'mphe', 'logloss', 'binary_logloss', 
+            'error', 'binary_error', 'merror', 'mlogloss', 'poisson-nloglik',
+            'gamma-nloglik', 'cox-nloglik', 'gamma-deviance', 'tweedie-nloglik',
+            'aft-nloglik'
+        }
+        metrics_to_maximize = {'auc', 'aucpr'}
+        for metric in metrics:
+            if metric in metrics_to_minimize or metric.startswith('error@'):
+                f = np.argmin
+            elif metric in metrics_to_maximize or metric.startswith('ndcg') or metric.startswith('map'):
+                f = np.argmax
+            else:
+                self.logger.warning(f"Unexpected metric '{metric}', skipping it")
+                continue
+            for dataset_name in dataset_names:
+                n_estimator_performance = np.array(evals_result.get(dataset_name, {}).get(metric))
                 best_n_estimators = f(n_estimator_performance) + 1
                 df.at[metric, dataset_name] = best_n_estimators
         df.to_csv(f'{self.tables_subdir}/optimal_n_estimators.csv')
