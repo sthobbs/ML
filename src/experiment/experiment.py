@@ -32,7 +32,7 @@ if not hasattr(np, "warnings"):
 
 
 class ConfigError(Exception):
-    """Exception for issues with a configuration file."""
+    """Exception for issues with an experiment configuration file."""
 
     pass
 
@@ -80,8 +80,8 @@ class Experiment():
 
         # ------ Output Config -------
         self.experiment_dir = Path(self.config["experiment_dir"])
-        now = datetime.now().strftime("%Y%m%d-%H%M%S")  # current datetime
-        self.output_dir = self.experiment_dir / f"{self.version}-{now}"
+        now = datetime.now().strftime("%Y%m%d_%H%M%S")  # current datetime
+        self.output_dir = self.experiment_dir / f"{self.version}_{now}"
         self.performance_dir = self.output_dir / self.config["performance_dir"]
         self.model_dir = self.output_dir / self.config["model_dir"]
         self.explain_dir = self.output_dir / self.config["explain_dir"]

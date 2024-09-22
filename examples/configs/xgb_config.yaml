@@ -1,0 +1,547 @@
+
+# ----------------------------------
+# ---------- Meta Config -----------
+# ----------------------------------
+
+version: XGBoost_1.0
+description: Example experiment
+# version
+  # required, type: str
+  # example: 1.0.1
+  # meaning: version number associated with the current experiment
+    # Note: this value will prefix the output directory
+# description
+  # required, type: str
+  # example: initial experiment
+  # meaning: description of current experiment
+
+
+# ----------------------------------
+# ---------- Input Config ----------
+# ----------------------------------
+
+### Input Data
+data_dir: ./datasets/creditcard  # data directory
+data_file_patterns:  # files patterns of data sources
+  train: train_*.csv
+  validation: validation_*.csv
+  test: test_*.csv
+  other: other_*.csv
+# data_dir
+  # required, type: str
+  # example: ./Datasets/creditcard
+  # meaning: directory containing input data for training/validating/testing/etc.
+# data_file_patterns
+  # required, type: dict (list of key-value pairs)
+  # meaning: (dataset name: file pattern within data_dir) pairs
+  # Notes:
+    # 'train' is always required
+    # if hyperparameter_tuning is True and cross_validation is not True,
+      # then at least one of 'validation' or 'test' is required
+    # other named datasets are optional
+
+
+### Model Input
+input_model_path:
+# input_model_path
+  # not required, default None, type: string
+  # meaning: path to a (possibly pretrained) model object.
+    # possible uses cases: if you want to warm start, or just run model evalution
+    # leave empty if you don't want to load a model
+
+
+# ----------------------------------
+# --------- Output Config ----------
+# ----------------------------------
+
+### Experiments Directory
+experiment_dir: ./examples/experiment_output
+# experiment_dir
+  # required, type: str
+  # example: ./Experiments
+  # meaning: directory for a set of experiments
+    # Note that the current experiment will be in a subdirectory defined
+    # by the version and execution time
+
+
+### Output Sub-directories (of experiment_dir/[current_experiment_dir]/)
+performance_dir: performance  # for model performance charts
+model_dir: model  # for model objects
+explain_dir: explain  # for model explanatory objects
+score_dir: scores  # for model scores (only required if save_scores == True)
+log_dir: logs  # for logging (default 'logs')
+calibration_dir: calibration  # for model calibration
+
+
+### Other
+performance_increment: 0.01
+save_scores: True
+# performance_increment
+  # not required, default 0.01, type: float (or str that can cast to float)
+  # valid values: between 0 and 1
+  # meaning: the threshold increment used in model performance charts
+# save_scores
+  # required, type: boolean
+  # valid values: True, False
+  # meaning: True => save model scores for transaction data (along with aux_fields)
+
+
+# ----------------------------------
+# ----------- Job Config -----------
+# ----------------------------------
+
+### Model Type
+model_type: XGBClassifier
+# model_type
+  # required, type: string
+  # valid values
+    # when supervised is True:
+      # XGBClassifier, XGBRegressor,
+      # LGBMClassifier, LGBMRegressor,
+      # RandomForestClassifier, RandomForestRegressor,
+      # DecisionTreeClassifier, DecisionTreeRegressor,
+      # MLPClassifier, MLPRegressor,
+      # KNeighborsClassifier, KNeighborsRegressor, 
+      # LogisticRegression, LinearRegression
+    # when supervised is False:
+      # KMeans, DBSCAN, IsolationForest
+    # can also set model_type to 'Other', then pass an sklearn model object into .load_model()
+  # meaning: The type of model used in the experiment
+
+
+### Training Type
+supervised: True
+binary_classification: True  # True for 2-class classification experiments
+# supervised
+  # required, type: boolean
+  # valid values: True, False
+  # meaning: True => supervised training experiment (False for unsupervised)
+# binary_classification
+  # required, type: boolean
+  # valid values: True, False
+  # meaning: True => classification experiment with two classes (0 and 1)
+
+
+### Model Fields
+features:
+  - V1
+  - V2
+  - V3
+  - V4
+  - V5
+  - V6
+  - V7
+  - V8
+  - V9
+  - V10
+  - V11
+  - V12
+  - V13
+  - V14
+  - V15
+  - V16
+  - V17
+  - V18
+  - V19
+  - V20
+  - V21
+  - V22
+  - V23
+  - V24
+  - V25
+  - V26
+  - V27
+  - V28
+  - Amount
+label: "Class"
+aux_fields:
+  - Amount
+  - timestamp
+# features
+  # required, type: list of str
+  # meaning: list of field names of features
+# label
+  # not required, default None, type: str
+  # meaning: field name of target variable (can leave blank or omit for unsupervised learning)
+    # Note: required if supervised is True
+# aux_fields
+  # not required, default [] (empty list), type: str or list of str
+  # meaning: list of auxiliary fields to use to create additional metrics (must also be in features)
+
+
+### Miscellaneous
+seed: 32
+# seed
+  # required, type: int (or str that casts to int)
+  # valid values: any integer
+  # meaning: seed to initialize random number generator. Needed for reproducibility. 
+
+
+### Model Fit Parameters
+verbose: 100  # for XGBoost models
+# eval_metric: [auc, binary_error, binary_logloss]  # for LightGBM models
+# verbose (for XGBoost models)
+  # not required, default 10, type: None or int (or str that casts to int)
+  # valid values: None or int > 0
+  # meaning: how frequently to print output
+# eval_metric (for LightGBM models)
+  # not required, default 'logloss', type: None, str, or list
+  # valid values (or list elements): built-in sklearn evaluation metrics
+  # meaning: metrics to use during training (including for early stopping)
+
+# ----------------------------------
+# -------- Hyperparameters ---------
+# ----------------------------------
+
+### Hyperparameters
+hyperparameters:
+  n_estimators: 50
+  learning_rate: 0.1
+  gamma: 0.1
+  max_depth: 2
+  min_child_weight: 1
+  subsample: 0.8
+  colsample_bytree: 0.8
+  reg_lambda: 1
+  reg_alpha: 0
+  scale_pos_weight: 1
+  # early_stopping_rounds: 50  # early stopping slows down hyperparameter tuning because it requires eval_set
+  eval_metric: [auc, aucpr, error, logloss]  # last metric is used for early stopping (if applicable)
+# hyperparameters
+  # required, type: dict (list of key-value pairs)
+  # valid values: hyperparameter keywords that can be passed into the sklearn model
+    # valid values for eval_metric:
+      # rmse, rmsle, mae, mape, mphe, logloss, error, merror, mlogloss,
+      # poisson-nloglik, gamma-nloglik, cox-nloglik, gamma-deviance,
+      # tweedie-nloglik, aft-nloglik, auc, aucpr
+  # meaning: hyperparameter values to be passed into model
+
+
+### Hyperparameter Tuning
+hyperparameter_tuning: True  # True or False
+hyperparameter_eval_metric: log_loss  # average_precision, aucpr, auc, log_loss, brier_loss
+# hyperparameter_tuning
+  # not required, default False, type: boolean
+  # valid values: True, False
+  # meaning: True => run hyperparameter tuning
+# hyperparameter_eval_metric
+  # not required, default 'log_loss', type: string
+  # valid values: average_precision, aucpr, auc, log_loss, brier_loss
+  # meaning: metric to use to choose best hyperparameters
+
+
+### Cross Validation
+cross_validation: False
+cv_folds: 5
+# cross_validation
+  # not required, default False, type: boolean
+  # valid values: True, False
+  # meaning: True => run cross validation when tuning hyperparameters
+    # if True, only the training data will be used for training
+# cv_folds
+  # not required, default 5, type: None or int (or str that casts to int)
+  # valid values: int >= 1
+  # meaning: the number of folds in (stratified) k-fold cross validation
+
+
+### Hyperparameter Tuning Algorithm
+tuning_algorithm: atpe  # grid, random, tpe, or atpe.
+grid_search_n_jobs: 5
+tuning_iterations: 30  # need to specify for random, tpe, or atpe
+# tuning_algorithm
+  # not required, default None, type: string
+  # valid values: grid, random, tpe, or atpe
+  # meaning: the hyperparameter tuning algorithm
+    # grid => Grid Search
+    # random => Random Search
+    # tpe => Tree Pazen Estimator
+    # atpe => Adaptive Tree Pazen Estimator
+  # notes:
+    # required if hyperparameter_tuning is True
+    # tpe matches random for the first 20 iterations
+# grid_search_n_jobs
+  # not required, default 1, type: None or int (or str that casts to int)
+  # valid values: -1 or int >= 1
+  # meaning: the number of jobs to run in parallel for grid search
+  # note: -1 means use all processors
+# tuning_iterations
+  # not required, default None, type: None or int (or str that casts to int)
+  # valid values: int > 0
+  # meaning: the number of iterations for random, tpe, or atpe hyperparameter search
+  # note: required if tuning_algorithm in (random, tpe, atpe)
+
+
+### Tuning Parameters
+# tuning_parameters
+  # not required, default None, type: None or dict
+  # meaning: specifies the distributions over which to search for hyperparameters
+  # notes:
+    # required if hyperparameter_tuning is True
+    # for grid: use dict of lists (see example below)
+    # for random, tpe, and atpe:
+      # use nested dict (see example below)
+      # possible distribution functions and params
+        # choice(options)
+        # uniform(low, high)
+        # quniform(low, high, q)  # i.e. round(uniform(low, high) / q) * q
+        # normal(mu, sigma)
+        # there are also log-uniform and log-normal distributions that I didn't implement
+
+
+# Example - Grid Search
+# ----------------------
+# tuning_parameters:
+#   min_child_weight: [1]
+#   max_depth: [3, 5]
+
+
+# Example - Random, TPE, or ATPE
+# ----------------------
+tuning_parameters:
+  n_estimators:
+    function: quniform
+    params:
+      low: 50
+      high: 1500
+      q: 1
+  learning_rate:
+    function: uniform
+    params:
+      low: 0.001
+      high: 0.1
+  gamma:
+    function: uniform
+    params:
+      low: 0
+      high: 5
+  max_depth:
+    function: choice  # could use quniform here
+    params:
+      options: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+  min_child_weight:
+    function: uniform 
+    params:
+      low: 0
+      high: 5
+  subsample:
+    function: uniform 
+    params:
+      low: 0
+      high: 1
+  colsample_bytree:
+    function: uniform 
+    params:
+      low: 0
+      high: 1
+  reg_lambda:
+    function: normal
+    params:
+      mu: 1
+      sigma: 0.1
+  reg_alpha:
+    function: uniform
+    params:
+      low: 0
+      high: 5
+
+
+# ----------------------------------
+# ------ Model explainability ------
+# ----------------------------------
+
+### Permutation Feature Importance
+permutation_importance: True
+perm_imp_metrics: [roc_auc, average_precision, neg_log_loss]
+perm_imp_n_repeats: 5
+# permutation_importance
+  # not required, default False, type: boolean
+  # valid values: True, False
+  # meaning: True => generate permutation feature importance tables
+# perm_imp_metrics
+  # not required, default neg_log_loss, type: list or string
+  # valid values (or list elements): roc_auc, average_precision, neg_log_loss, r2, ...
+    # see https://scikit-learn.org/stable/modules/model_evaluation.html for complete list
+  # meaning: metrics used in permutation feature importance calculations
+# perm_imp_n_repeats
+  # not required, default 10, type: int (or str that casts to int)
+  # valid values: int > 1
+  # meaning: number of times to permute each feature in permutation feature importance
+
+
+### Shapely Values
+shap: False  # True or False; True => generate shap charts
+shap_sample: 50000
+# shap
+  # not required, default False, type: boolean
+  # valid values: True, False
+  # meaning: True => generate shap charts
+# shap_sample
+  # not required, default None, type: None or int (or str that casts to int)
+  # valid values: None or int > 0
+  # meaning: use only shap_sample random rows to construct shap charts
+    # shap_sample is None => use all rows
+
+
+### Feature Distribution
+feature_distribution: True
+exclude_outliers: True
+# feature_distribution
+  # not required, default False, type: boolean
+  # valid values: True, False
+  # meaning: True => generate feature distribution charts
+# exclude_outliers
+  # not required, default False, type: boolean
+  # valid values: True, False
+  # meaning: True => exclude outliers from feature distribution charts
+
+
+### Feature vs Time
+feature_vs_time: True
+dt_field: timestamp
+dt_format: "%Y-%m-%d %H:%M:%S.%f"
+feature_vs_time_n_bins: 15
+# feature_vs_time
+  # not required, default False, type: boolean
+  # valid values: True, False
+  # meaning: True => generate feature vs time charts
+# dt_field
+  # not required, default 'timestamp', type: string
+  # valid values: None or string
+  # meaning: field to use for time axis in feature vs time charts
+# dt_format
+  # not required, default 'mixed', type: string
+  # valid values: None or string (e.g. '%Y-%m-%d %H:%M:%S', '%Y-%m-%d %H:%M:%S.%f')
+  # meaning: format to use for time axis field in feature vs time charts
+# feature_vs_time_n_bins
+  # not required, default 15, type: None or int (or str that casts to int)
+  # valid values: None or int > 1
+  # meaning: number of bins to use in feature vs time charts
+
+
+### Population Stability Index
+psi: True
+psi_bin_type: fixed
+psi_n_bins: 10
+# psi
+  # not required, default False, type: boolean
+  # valid values: True, False
+  # meaning: True => generate psi for all pairs of datasets
+# psi_bin_type
+  # not required, default 'fixed', type: string
+  # valid values: 'fixed', 'quantiles'
+  # meaning: when to use evenly spaced bins or quantiles when calculating psi
+# psi_n_bins
+  # not required, default 10, type: None or int (or str that casts to int)
+  # valid values: None or int > 1
+  # meaning: number of bins to use in psi calculation
+
+
+### Characteristic Stability Index
+csi: True
+csi_bin_type: fixed
+csi_n_bins: 10
+# csi
+  # not required, default False, type: boolean
+  # valid values: True, False
+  # meaning: True => generate csi for all features in all pairs of datasets
+# csi_bin_type
+  # not required, default 'fixed', type: string
+  # valid values: 'fixed', 'quantiles'
+  # meaning: when to use evenly spaced bins or quantiles when calculating csi
+# csi_n_bins
+  # not required, default 10, type: None or int (or str that casts to int)
+  # valid values: None or int > 1
+  # meaning: number of bins to use in csi calculation
+
+
+### Variance Inflation Factor
+vif: True
+# vif
+  # not required, default False, type: boolean
+  # valid values: True, False
+  # meaning: True => generate variance inflation factor (vif) for all features in all datasets
+
+
+### Weight of Evidence & Information Value
+woe_iv: True
+woe_bin_type: quantiles
+woe_n_bins: 10
+# woe_iv
+  # not required, default False, type: boolean
+  # valid values: True, False
+  # meaning: True => generate Weight of Evidence and Information Value for all features in all datasets
+# woe_bin_type
+  # not required, default 'quantiles', type: string
+  # valid values: 'fixed', 'quantiles'
+  # meaning: when to use evenly spaced bins or quantiles when calculating woe and iv
+# woe_n_bins
+  # not required, default 10, type: None or int (or str that casts to int)
+  # valid values: None or int > 1
+  # meaning: number of bins to use in woe and iv calculation
+
+
+### Correlation Matrix and Heatmap
+correlation: True
+corr_max_features: 100
+# correlation
+  # not required, default False, type: boolean
+  # valid values: True, False
+  # meaning: True => generate correlation matrix and heatmap for each dataset
+# corr_max_features
+  # not required, default 100, type: None or int (or str that casts to int)
+  # valid values: None or int > 1
+  # meaning: maximum number of features allowed for correlation matricies and heatmap to be generated.
+    # this is included to prevent long runtimes if there are too many features
+
+
+### Summary Statistics
+summary_stats: True
+quantiles: [0, 0.01, 0.1, 0.25, 0.5, 0.75, 0.9, 0.99, 1]
+top_n_value_counts: 5
+# summary_stats
+  # not required, default False, type: boolean
+  # valid values: True, False
+  # meaning: True => generate summary statistics for all features and the label in all datasets
+# quantiles
+  # not required, default None, type: list
+  # valid values: List of numbers in the closed interval [0, 1]
+  # meaning: list of quantiles to generate for each feature (+ label)
+# top_n_value_counts
+  # not required, default 5, type: int (or str that casts to int)
+  # valid values: None or int >= 1
+  # meaning: gen top n value counts for each feature (+ label)
+
+
+### Binary Splits Analysis
+binary_splits: True
+n_splits: 10
+# binary_splits
+  # not required, default False, type: boolean
+  # valid values: True, False
+  # meaning: True => generate binary splits table for all features in all datasets
+# n_splits
+  # not required, default 10, type: None or int (or str that casts to int)
+  # valid values: None or int >= 1
+  # meaning: number of splits to use in binary splits analysis
+
+
+# ----------------------------------
+# ------- Model Calibration --------
+# ----------------------------------
+
+model_calibration: True
+calibration_type: logistic
+calibration_train_dataset_name: validation
+# calibration
+  # not required, default False, type: boolean
+  # valid values: True, False
+  # meaning: True => calibrate model to a probability using the validation dataset
+# calibration_type
+  # not required, default 'logistic', type: string
+  # valid values: isotonic, logistic
+  # meaning: The type of model calibration to apply (isotonic regression or logistic regression)            
+# calibration_train_dataset_name
+  # not required, default 'validation', type: string
+  # valid values: any named dataset in data_file_patterns
+  # meaning: the name of the dataset that will be used to train a calibration model
+

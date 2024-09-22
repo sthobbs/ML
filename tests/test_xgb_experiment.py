@@ -1,5 +1,5 @@
 import pytest
-from experiment.xgb_experiment import XGBExperiment
+from experiment.experiment_xgb import XGBExperiment
 from sklearn.base import BaseEstimator
 from utils import non_empty_file
 
