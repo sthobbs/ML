@@ -24,8 +24,8 @@ class XGBExperiment(Experiment):
 
         super().__init__(config_path)
 
-        # specific order for dataset_names (since last dataset is used for early stopping if enabled)
-        if self.hyperparameters.get("early_stopping_rounds"):
+        # reorder for dataset_names (since last dataset is used for early stopping if enabled)
+        if self.hyperparameters.get("early_stopping_rounds") or 'early_stopping_round' in self.tuning_parameters:
             all_names = set(self.data_file_patterns)
             main_names = {'train', 'test', 'validation'}
             other_names = sorted(all_names.difference(main_names))
@@ -52,11 +52,9 @@ class XGBExperiment(Experiment):
         Parameters
         ----------
             model_obj : str, optional
-                Scikit-learn model object with a .predict_proba() method
-                (default is None).
+                XGBoost model.
             path : str, optional
-                File path to scikit-learn model object with a .predict_proba()
-                method (default is None).
+                File path to XGBoost model object (default is None).
         """
 
         super().load_model(model_obj, path)
