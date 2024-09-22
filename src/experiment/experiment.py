@@ -1,4 +1,5 @@
 import xgboost as xgb
+import lightgbm as lgb
 from sklearn import ensemble, tree, neural_network, neighbors, linear_model, cluster
 from sklearn.base import BaseEstimator
 from sklearn.utils import shuffle
@@ -111,9 +112,14 @@ class Experiment():
         random.seed(self.seed)
         np.random.seed(self.seed)
         self.verbose = int(self.config.get("verbose", 10))
-
+        self.eval_metric = self.config.get('eval_metric')
+        if self.eval_metric is None or self.eval_metric in ('', []):
+            self.eval_metric = 'logloss'
+        
         # ------ Hyperparameters -------
         self.hyperparameters = self.config["hyperparameters"]
+        if self.hyperparameters is None:
+            self.hyperparameters = {}
         self.hyperparameters["random_state"] = self.seed
         self.hyperparameter_tuning = self.config.get("hyperparameter_tuning", False)
         self.hyperparameter_eval_metric = self.config.get("hyperparameter_eval_metric", "log_loss")
@@ -219,17 +225,17 @@ class Experiment():
         other_valid_keys = {
             'input_model_path', 'score_dir', 'log_dir', 'calibration_dir',
             'misc_dir', 'performance_increment', 'label', 'aux_fields',
-            'verbose', 'hyperparameter_tuning',  'hyperparameter_eval_metric',
-            'cross_validation', 'cv_folds', 'tuning_algorithm',
-            'grid_search_n_jobs',  'tuning_iterations', 'tuning_parameters',
-            'permutation_importance', 'perm_imp_metrics', 'perm_imp_n_repeats',
-            'shap', 'shap_sample', 'feature_distribution', 'exclude_outliers',
-            'feature_vs_time', 'dt_field', 'dt_format', 'feature_vs_time_n_bins',
-            'psi', 'psi_bin_type', 'psi_n_bins', 'csi', 'csi_bin_type',
-            'csi_n_bins', 'vif', 'woe_iv', 'woe_bin_type', 'woe_n_bins',
-            'correlation', 'corr_max_features', 'summary_stats', 'quantiles',
-            'top_n_value_counts', 'binary_splits', 'n_splits', 'model_calibration',
-            'calibration_type', 'calibration_train_dataset_name'
+            'verbose', 'eval_metric', 'hyperparameter_tuning', 
+            'hyperparameter_eval_metric', 'cross_validation', 'cv_folds',
+            'tuning_algorithm', 'grid_search_n_jobs',  'tuning_iterations',
+            'tuning_parameters', 'permutation_importance', 'perm_imp_metrics',
+            'perm_imp_n_repeats', 'shap', 'shap_sample', 'feature_distribution',
+            'exclude_outliers', 'feature_vs_time', 'dt_field', 'dt_format',
+            'feature_vs_time_n_bins', 'psi', 'psi_bin_type', 'psi_n_bins', 'csi',
+            'csi_bin_type', 'csi_n_bins', 'vif', 'woe_iv', 'woe_bin_type',
+            'woe_n_bins', 'correlation', 'corr_max_features', 'summary_stats',
+            'quantiles', 'top_n_value_counts', 'binary_splits', 'n_splits',
+            'model_calibration', 'calibration_type', 'calibration_train_dataset_name'
         }
         valid_keys = required_keys.union(other_valid_keys)
         keys_with_required_vals = {
@@ -292,6 +298,7 @@ class Experiment():
         # specify valid supervised and unsupervised models
         supervised_models = {
           'XGBClassifier', 'XGBRegressor',
+          'LGBMClassifier', 'LGBMRegressor',
           'RandomForestClassifier', 'RandomForestRegressor',
           'DecisionTreeClassifier', 'DecisionTreeRegressor',
           'MLPClassifier', 'MLPRegressor',
@@ -317,21 +324,33 @@ class Experiment():
             raise ConfigError("need label when `supervised` = True")
 
         # check eval_metric
-        if "eval_metric" in self.config.get("hyperparameters", []):
+        valid_metrics = {
+            'rmse', 'rmsle', 'mae', 'mape', 'mphe', 'logloss', 'binary_logloss',
+            'error', 'binary_error', 'merror', 'mlogloss', 'poisson-nloglik',
+            'gamma-nloglik', 'cox-nloglik', 'gamma-deviance', 'tweedie-nloglik',
+            'aft-nloglik', 'auc', 'aucpr'
+        }
+        if self.config.get("hyperparameters") and "eval_metric" in self.config.get("hyperparameters"):
             if not isinstance(self.config["hyperparameters"]["eval_metric"], list):
                 if not isinstance(self.config["hyperparameters"]["eval_metric"], str):
                     raise ConfigError("`eval_metric` should be a string or list")
                 eval_metric = [self.config["hyperparameters"]["eval_metric"]]
             else:
                 eval_metric = self.config["hyperparameters"]["eval_metric"]
-            valid_metrics = {
-                'rmse', 'rmsle', 'mae', 'mape', 'mphe', 'logloss', 'error', 'merror',
-                'mlogloss', 'poisson-nloglik', 'gamma-nloglik', 'cox-nloglik',
-                'gamma-deviance', 'tweedie-nloglik', 'aft-nloglik', 'auc', 'aucpr'
-            }
             for m in eval_metric:
                 if m not in valid_metrics:
                     raise ConfigError(f"{m} is not a valid `eval_metric`")
+        if self.config.get("eval_metric"):
+            eval_metric = self.config["eval_metric"]
+            if isinstance(eval_metric, str):
+                if eval_metric not in valid_metrics:
+                    raise ConfigError(f"{eval_metric} is not a valid `eval_metric`")
+            elif isinstance(eval_metric, list):
+                for m in eval_metric:
+                    if m not in valid_metrics:
+                        raise ConfigError(f"{m} is not a valid `eval_metric`")
+            else:
+                raise ConfigError("`eval_metric` should be a string or list")
 
         # check that hyperparamter tuning algorithm is valid
         if self.config.get("hyperparameter_tuning", False):
@@ -582,6 +601,8 @@ class Experiment():
             self.model = {
                 'XGBClassifier': xgb.XGBClassifier(),
                 'XGBRegressor': xgb.XGBRegressor(),
+                'LGBMClassifier': lgb.LGBMClassifier(),
+                'LGBMRegressor': lgb.LGBMRegressor(),
                 'RandomForestClassifier': ensemble.RandomForestClassifier(),
                 'RandomForestRegressor': ensemble.RandomForestRegressor(),
                 'DecisionTreeClassifier': tree.DecisionTreeClassifier(),
@@ -773,6 +794,14 @@ class Experiment():
             gs_kwargs['cv'] = ps
         model = GridSearchCV(**gs_kwargs)
 
+        # if there is no early stopping, then remove eval_set for efficiency
+        if 'eval_set' in fit_params:
+            possible_params = self.hyperparameters | self.tuning_parameters
+            if not ('early_stopping_round' in possible_params or \
+                    'early_stopping_rounds' in possible_params):  # singular and plural
+                fit_params = deepcopy(fit_params)
+                fit_params.pop('eval_set')
+
         # Grid search all possible combinations
         model.fit(X, y, **fit_params)
 
@@ -917,10 +946,17 @@ class Experiment():
         self.logger.info(param_dict)
         score: float
 
-        # train model
         self.model.set_params(**param_dict)
         metric = self.hyperparameter_eval_metric
 
+        # if there is no early stopping, then remove eval_set for efficiency
+        if 'eval_set' in fit_params:
+            if not (self.model.get_params().get('early_stopping_round', 0) > 0 or \
+                    self.model.get_params().get('early_stopping_rounds', 0) > 0):  # singular and plural
+                fit_params = deepcopy(fit_params)
+                fit_params.pop('eval_set')
+
+        # train model
         if self.cross_validation:
             # make evaluation scorer
             scorer = make_scorer(metric_score, metric=metric)
@@ -928,7 +964,7 @@ class Experiment():
             cv_scores = cross_val_score(self.model,
                                         **self.data['train'],
                                         scoring=scorer,
-                                        fit_params=fit_params)
+                                        params=fit_params)
             score = cv_scores.mean()
         else:
             # train model
@@ -1053,6 +1089,10 @@ class Experiment():
         # Generate XGBoost Explainability
         if isinstance(self.model, xgb.XGBModel):
             model_explain.xgb_explain()
+
+        # Generate LightGBM Explainability
+        if isinstance(self.model, lgb.LGBMModel):
+            model_explain.lgb_explain()
 
     def gen_scores(self) -> None:
         """Save model scores for each row."""
