@@ -23,8 +23,8 @@ class ModelExplain():
     Generates model explainability results.
 
     Author:
-       Steve Hobbs
-       github.com/sthobbs
+        Steve Hobbs
+        github.com/sthobbs
     """
 
     def __init__(self,

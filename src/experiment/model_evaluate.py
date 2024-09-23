@@ -66,8 +66,8 @@ class ModelEvaluate():
     Generates plots and charts to evaluate a model.
 
     Author:
-       Steve Hobbs
-       github.com/sthobbs
+        Steve Hobbs
+        github.com/sthobbs
     """
 
     def __init__(self,

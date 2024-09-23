@@ -8,8 +8,8 @@ class LGBExperiment(Experiment):
     Class for training and evaluating LightGBM models.
 
     Author:
-       Steve Hobbs
-       github.com/sthobbs
+        Steve Hobbs
+        github.com/sthobbs
     """
 
     def __init__(self, config_path: str) -> None:
